@@ -9,3 +9,10 @@ This is a new project (`claude-code-lab`). No build system, dependencies, or sou
 ## Claude Code Guide Usage
 
 The claude-code-guide agent may sometimes give incorrect answers. When the user asks follow-up questions, refer to the markdown files from the official Claude Code documentation at https://code.claude.com/docs using curl to provide accurate answers. After that, use AskUserQuestion to quiz the user and guide them to try it hands-on.
+
+## Active Technologies
+- TypeScript 5.x (strict mode) + Next.js 15 (App Router), React 19, Tailwind CSS 4, Kakao Maps SDK, Kakao Local REST API, Dexie.js 4 (IndexedDB) (001-restaurant-wishlist)
+- IndexedDB via Dexie.js (client-side only, no backend) (001-restaurant-wishlist)
+
+## Recent Changes
+- 001-restaurant-wishlist: Added TypeScript 5.x (strict mode) + Next.js 15 (App Router), React 19, Tailwind CSS 4, Kakao Maps SDK, Kakao Local REST API, Dexie.js 4 (IndexedDB)
