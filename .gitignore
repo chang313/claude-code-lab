@@ -13,6 +13,3 @@ node_modules/
 .vscode/
 *.swp
 *.swo
-
-# Claude Code
-.claude/
