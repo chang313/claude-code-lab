@@ -24,8 +24,8 @@ export default function RootLayout({
     <html lang="ko">
       <body className="bg-gray-50 text-gray-900 min-h-screen pb-16">
         <Script
-          src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_JS_KEY}&autoload=false`}
-          strategy="beforeInteractive"
+          src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_JS_KEY}`}
+          strategy="afterInteractive"
         />
         <OfflineBanner />
         <main className="max-w-lg mx-auto px-4 pt-4">{children}</main>

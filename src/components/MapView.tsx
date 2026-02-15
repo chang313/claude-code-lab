@@ -92,31 +92,29 @@ export default function MapView({
     if (!containerRef.current) return;
 
     const initMap = () => {
-      window.kakao.maps.load(() => {
-        const mapCenter = center || DEFAULT_CENTER;
-        const map = new window.kakao.maps.Map(containerRef.current!, {
-          center: new window.kakao.maps.LatLng(mapCenter.lat, mapCenter.lng),
-          level: DEFAULT_LEVEL,
-        });
-        mapRef.current = map;
-
-        window.kakao.maps.event.addListener(map, "idle", emitBounds);
-
-        // Initial bounds emit
-        setTimeout(emitBounds, 500);
+      const mapCenter = center || DEFAULT_CENTER;
+      const map = new window.kakao.maps.Map(containerRef.current!, {
+        center: new window.kakao.maps.LatLng(mapCenter.lat, mapCenter.lng),
+        level: DEFAULT_LEVEL,
       });
+      mapRef.current = map;
+
+      window.kakao.maps.event.addListener(map, "idle", emitBounds);
+
+      // Initial bounds emit
+      setTimeout(emitBounds, 500);
     };
 
-    if (window.kakao?.maps) {
+    if (window.kakao?.maps?.Map) {
       initMap();
     } else {
       // SDK not loaded yet — poll until ready
       const interval = setInterval(() => {
-        if (window.kakao?.maps) {
+        if (window.kakao?.maps?.Map) {
           clearInterval(interval);
           initMap();
         }
-      }, 100);
+      }, 200);
       return () => clearInterval(interval);
     }
   }, [center, emitBounds]);
