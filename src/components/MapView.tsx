@@ -91,7 +91,7 @@ export default function MapView({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const initMap = () => {
+    const createMap = () => {
       const mapCenter = center || DEFAULT_CENTER;
       const map = new window.kakao.maps.Map(containerRef.current!, {
         center: new window.kakao.maps.LatLng(mapCenter.lat, mapCenter.lng),
@@ -105,12 +105,17 @@ export default function MapView({
       setTimeout(emitBounds, 500);
     };
 
-    if (window.kakao?.maps?.Map) {
+    const initMap = () => {
+      // autoload=false requires manual kakao.maps.load() call
+      window.kakao.maps.load(createMap);
+    };
+
+    if (window.kakao?.maps) {
       initMap();
     } else {
-      // SDK not loaded yet — poll until ready
+      // SDK script not loaded yet — poll until ready
       const interval = setInterval(() => {
-        if (window.kakao?.maps?.Map) {
+        if (window.kakao?.maps) {
           clearInterval(interval);
           initMap();
         }
