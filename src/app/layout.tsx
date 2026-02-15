@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import OfflineBanner from "@/components/OfflineBanner";
@@ -22,11 +21,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
-      <body className="bg-gray-50 text-gray-900 min-h-screen pb-16">
-        <Script
-          src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_JS_KEY}`}
-          strategy="afterInteractive"
+      <head>
+        <script
+          type="text/javascript"
+          src={`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_JS_KEY}`}
         />
+      </head>
+      <body className="bg-gray-50 text-gray-900 min-h-screen pb-16">
         <OfflineBanner />
         <main className="max-w-lg mx-auto px-4 pt-4">{children}</main>
         <BottomNav />
