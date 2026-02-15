@@ -9,7 +9,8 @@ export default function KakaoScript() {
     const script = document.createElement("script");
     script.id = "kakao-sdk";
     script.type = "text/javascript";
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_JS_KEY}`;
+    const appkey = (process.env.NEXT_PUBLIC_KAKAO_JS_KEY ?? "").trim();
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appkey}`;
     document.head.appendChild(script);
   }, []);
 
