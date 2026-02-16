@@ -11,7 +11,12 @@
       "Bash(sh)",
       "Bash(export PATH=\"$HOME/.local/bin:$PATH\")",
       "Bash(uv:*)",
-      "Bash(specify init:*)"
+      "Bash(specify init:*)",
+      "Bash(git fetch:*)",
+      "Bash(/Users/parkchanghyeon/github/claude-code-lab/.specify/scripts/bash/create-new-feature.sh:*)",
+      "Bash(/Users/parkchanghyeon/github/claude-code-lab/.specify/scripts/bash/check-prerequisites.sh:*)",
+      "Bash(/Users/parkchanghyeon/github/claude-code-lab/.specify/scripts/bash/setup-plan.sh:*)",
+      "Bash(/Users/parkchanghyeon/github/claude-code-lab/.specify/scripts/bash/update-agent-context.sh:*)"
     ]
   }
 }

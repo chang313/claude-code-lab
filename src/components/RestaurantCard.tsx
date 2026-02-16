@@ -1,0 +1,90 @@
+"use client";
+
+import StarRating from "./StarRating";
+
+interface RestaurantCardProps {
+  restaurant: {
+    id: string;
+    name: string;
+    address: string;
+    category: string;
+    starRating: number;
+  };
+  variant: "search-result" | "wishlist";
+  isWishlisted?: boolean;
+  onAddToWishlist?: () => void;
+  onRemove?: () => void;
+  onStarChange?: (rating: 1 | 2 | 3) => void;
+  onClick?: () => void;
+}
+
+export default function RestaurantCard({
+  restaurant,
+  variant,
+  isWishlisted,
+  onAddToWishlist,
+  onRemove,
+  onStarChange,
+  onClick,
+}: RestaurantCardProps) {
+  return (
+    <div
+      className="bg-white rounded-xl p-4 shadow-sm border border-gray-100"
+      role="article"
+      aria-label={restaurant.name}
+      data-testid="restaurant-card"
+    >
+      <div
+        className={onClick ? "cursor-pointer" : ""}
+        onClick={onClick}
+        onKeyDown={(e) => e.key === "Enter" && onClick?.()}
+        tabIndex={onClick ? 0 : undefined}
+        role={onClick ? "button" : undefined}
+      >
+        <h3 className="font-semibold text-lg leading-tight">
+          {restaurant.name}
+        </h3>
+        <p className="text-sm text-gray-500 mt-1">{restaurant.address}</p>
+        <p className="text-xs text-gray-400 mt-0.5">{restaurant.category}</p>
+      </div>
+
+      <div className="flex items-center justify-between mt-3">
+        {variant === "wishlist" && onStarChange && (
+          <StarRating
+            value={restaurant.starRating as 1 | 2 | 3}
+            onChange={onStarChange}
+            size="sm"
+          />
+        )}
+
+        {variant === "search-result" && (
+          <>
+            {isWishlisted ? (
+              <span className="text-sm text-green-600 font-medium">
+                ✓ Saved
+              </span>
+            ) : (
+              <button
+                onClick={onAddToWishlist}
+                className="px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors"
+                aria-label={`Add ${restaurant.name} to wishlist`}
+              >
+                + Wishlist
+              </button>
+            )}
+          </>
+        )}
+
+        {variant === "wishlist" && onRemove && (
+          <button
+            onClick={onRemove}
+            className="text-sm text-red-500 hover:text-red-700"
+            aria-label={`Remove ${restaurant.name}`}
+          >
+            Remove
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}

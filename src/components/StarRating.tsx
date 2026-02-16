@@ -1,0 +1,42 @@
+"use client";
+
+interface StarRatingProps {
+  value: 1 | 2 | 3;
+  onChange?: (rating: 1 | 2 | 3) => void;
+  readonly?: boolean;
+  size?: "sm" | "md" | "lg";
+}
+
+const sizeClasses = {
+  sm: "text-lg",
+  md: "text-2xl",
+  lg: "text-3xl",
+};
+
+export default function StarRating({
+  value,
+  onChange,
+  readonly = false,
+  size = "md",
+}: StarRatingProps) {
+  return (
+    <div className="flex gap-0.5" role="group" aria-label="Star rating">
+      {([1, 2, 3] as const).map((star) => (
+        <button
+          key={star}
+          type="button"
+          disabled={readonly}
+          onClick={() => onChange?.(star)}
+          className={`${sizeClasses[size]} ${
+            readonly ? "cursor-default" : "cursor-pointer hover:scale-110"
+          } transition-transform ${
+            star <= value ? "text-yellow-400" : "text-gray-300"
+          }`}
+          aria-label={`${star} star${star > 1 ? "s" : ""}`}
+        >
+          ★
+        </button>
+      ))}
+    </div>
+  );
+}
