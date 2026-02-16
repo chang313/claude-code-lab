@@ -1,68 +1,157 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import SearchBar from "@/components/SearchBar";
+import MapView from "@/components/MapView";
+import BottomSheet from "@/components/BottomSheet";
 import RestaurantCard from "@/components/RestaurantCard";
 import { searchByKeyword } from "@/lib/kakao";
 import { useAddRestaurant, useIsWishlistedSet } from "@/db/search-hooks";
 import type { KakaoPlace } from "@/types";
 
+type SheetState = "hidden" | "peek" | "expanded";
+
 export default function SearchPage() {
   const [results, setResults] = useState<KakaoPlace[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [selectedPlace, setSelectedPlace] = useState<KakaoPlace | null>(null);
+  const [sheetState, setSheetState] = useState<SheetState>("hidden");
+  const [center, setCenter] = useState<{ lat: number; lng: number } | undefined>();
   const { addRestaurant } = useAddRestaurant();
   const wishlistedIds = useIsWishlistedSet(results.map((r) => r.id));
 
+  // Geolocation for initial map center
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => {},
+      );
+    }
+  }, []);
+
+  // Search flow
   const handleSearch = useCallback(async (query: string) => {
     setIsLoading(true);
     setHasSearched(true);
+    setSelectedPlace(null);
     try {
       const response = await searchByKeyword({ query, size: 15 });
       setResults(response.documents);
+      setSheetState("peek");
     } catch {
       setResults([]);
+      setSheetState("peek");
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  // Marker click handler
+  const handleMarkerClick = useCallback(
+    (id: string) => {
+      const place = results.find((p) => p.id === id);
+      setSelectedPlace(place ?? null);
+    },
+    [results],
+  );
+
+  // Wishlist action
   const handleAdd = async (place: KakaoPlace) => {
-    const added = await addRestaurant(place);
-    if (!added) {
-      // Already wishlisted — UI will update reactively
-    }
+    await addRestaurant(place);
+    setSelectedPlace(null);
   };
 
+  // Map markers derived from results
+  const markers = useMemo(
+    () =>
+      results
+        .filter((p) => p.x && p.y)
+        .map((p) => ({
+          id: p.id,
+          lat: parseFloat(p.y),
+          lng: parseFloat(p.x),
+          name: p.place_name,
+          isWishlisted: wishlistedIds.has(p.id),
+        })),
+    [results, wishlistedIds],
+  );
+
+  // Auto-fit bounds from results
+  const fitBounds = useMemo(() => {
+    if (!hasSearched || markers.length === 0) return undefined;
+    return markers.map((m) => ({ lat: m.lat, lng: m.lng }));
+  }, [hasSearched, markers]);
+
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Search Restaurants</h1>
-      <SearchBar onSearch={handleSearch} isLoading={isLoading} />
+    <div className="relative h-[calc(100vh-4rem)]">
+      {/* Search bar floating over map */}
+      <div className="absolute top-0 left-0 right-0 z-20 p-4">
+        <SearchBar onSearch={handleSearch} isLoading={isLoading} />
+      </div>
 
-      {hasSearched && !isLoading && results.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          <p className="text-lg">No restaurants found</p>
-          <p className="text-sm mt-1">Try a different search term</p>
-        </div>
-      )}
+      {/* Full-screen map */}
+      <MapView
+        center={center}
+        markers={markers}
+        fitBounds={fitBounds}
+        onMarkerClick={handleMarkerClick}
+        className="w-full h-full"
+      />
 
-      <div className="space-y-3">
-        {results.map((place) => (
+      {/* Selected place detail card */}
+      {selectedPlace && (
+        <div className="absolute bottom-20 left-4 right-4 z-30">
           <RestaurantCard
-            key={place.id}
             restaurant={{
-              id: place.id,
-              name: place.place_name,
-              address: place.road_address_name || place.address_name,
-              category: place.category_name,
+              id: selectedPlace.id,
+              name: selectedPlace.place_name,
+              address: selectedPlace.road_address_name || selectedPlace.address_name,
+              category: selectedPlace.category_name,
               starRating: 1,
             }}
             variant="search-result"
-            isWishlisted={wishlistedIds.has(place.id)}
-            onAddToWishlist={() => handleAdd(place)}
+            isWishlisted={wishlistedIds.has(selectedPlace.id)}
+            onAddToWishlist={() => handleAdd(selectedPlace)}
           />
-        ))}
-      </div>
+        </div>
+      )}
+
+      {/* Bottom sheet with result list */}
+      {hasSearched && (
+        <BottomSheet state={sheetState} onStateChange={setSheetState}>
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : results.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <p className="text-lg">No restaurants found</p>
+              <p className="text-sm mt-1">Try a different search term</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-500">{results.length} results</p>
+              {results.map((place) => (
+                <RestaurantCard
+                  key={place.id}
+                  restaurant={{
+                    id: place.id,
+                    name: place.place_name,
+                    address: place.road_address_name || place.address_name,
+                    category: place.category_name,
+                    starRating: 1,
+                  }}
+                  variant="search-result"
+                  isWishlisted={wishlistedIds.has(place.id)}
+                  onAddToWishlist={() => handleAdd(place)}
+                />
+              ))}
+            </div>
+          )}
+        </BottomSheet>
+      )}
     </div>
   );
 }

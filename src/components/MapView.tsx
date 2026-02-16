@@ -18,8 +18,10 @@ interface Bounds {
 interface MapViewProps {
   center?: { lat: number; lng: number };
   markers: MapMarker[];
+  fitBounds?: { lat: number; lng: number }[];
   onMarkerClick: (id: string) => void;
-  onBoundsChange: (bounds: Bounds) => void;
+  onBoundsChange?: (bounds: Bounds) => void;
+  className?: string;
 }
 
 declare global {
@@ -32,6 +34,7 @@ declare global {
           options: { center: unknown; level: number },
         ) => KakaoMap;
         LatLng: new (lat: number, lng: number) => unknown;
+        LatLngBounds: new () => KakaoLatLngBounds;
         Marker: new (options: { map: KakaoMap; position: unknown }) => KakaoMarker;
         InfoWindow: new (options: { content: string }) => KakaoInfoWindow;
         event: {
@@ -46,12 +49,17 @@ declare global {
   }
 }
 
+interface KakaoLatLngBounds {
+  extend: (latlng: unknown) => void;
+}
+
 interface KakaoMap {
   getBounds: () => {
     getSouthWest: () => { getLat: () => number; getLng: () => number };
     getNorthEast: () => { getLat: () => number; getLng: () => number };
   };
   setCenter: (latlng: unknown) => void;
+  setBounds: (bounds: KakaoLatLngBounds) => void;
 }
 
 interface KakaoMarker {
@@ -69,8 +77,10 @@ const DEFAULT_LEVEL = 5;
 export default function MapView({
   center,
   markers,
+  fitBounds,
   onMarkerClick,
   onBoundsChange,
+  className,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<KakaoMap | null>(null);
@@ -78,7 +88,7 @@ export default function MapView({
   const infoWindowRef = useRef<KakaoInfoWindow | null>(null);
 
   const emitBounds = useCallback(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !onBoundsChange) return;
     const bounds = mapRef.current.getBounds();
     const sw = bounds.getSouthWest();
     const ne = bounds.getNorthEast();
@@ -99,21 +109,19 @@ export default function MapView({
       });
       mapRef.current = map;
 
-      window.kakao.maps.event.addListener(map, "idle", emitBounds);
-
-      // Initial bounds emit
-      setTimeout(emitBounds, 500);
+      if (onBoundsChange) {
+        window.kakao.maps.event.addListener(map, "idle", emitBounds);
+        setTimeout(emitBounds, 500);
+      }
     };
 
     const initMap = () => {
-      // autoload=false requires manual kakao.maps.load() call
       window.kakao.maps.load(createMap);
     };
 
     if (window.kakao?.maps) {
       initMap();
     } else {
-      // SDK script not loaded yet — poll until ready
       const interval = setInterval(() => {
         if (window.kakao?.maps) {
           clearInterval(interval);
@@ -122,13 +130,23 @@ export default function MapView({
       }, 200);
       return () => clearInterval(interval);
     }
-  }, [center, emitBounds]);
+  }, [center, emitBounds, onBoundsChange]);
+
+  // Auto-fit map to bounds
+  useEffect(() => {
+    if (!mapRef.current || !fitBounds || fitBounds.length === 0) return;
+
+    const bounds = new window.kakao.maps.LatLngBounds();
+    fitBounds.forEach((point) => {
+      bounds.extend(new window.kakao.maps.LatLng(point.lat, point.lng));
+    });
+    mapRef.current.setBounds(bounds);
+  }, [fitBounds]);
 
   useEffect(() => {
     if (!mapRef.current || !window.kakao) return;
     const map = mapRef.current;
 
-    // Clear existing markers
     markerRefs.current.forEach((m) => m.setMap(null));
     markerRefs.current = [];
     infoWindowRef.current?.close();
@@ -141,7 +159,7 @@ export default function MapView({
       const infoContent = `
         <div style="padding:8px;min-width:150px;font-size:14px;">
           <strong>${m.name}</strong>
-          ${m.isWishlisted ? '<div style="color:green;font-size:12px;">✓ Saved</div>' : ""}
+          ${m.isWishlisted ? '<div style="color:green;font-size:12px;">&#10003; Saved</div>' : ""}
         </div>
       `;
       const infoWindow = new window.kakao.maps.InfoWindow({
@@ -161,7 +179,7 @@ export default function MapView({
     <div
       id="kakao-map"
       ref={containerRef}
-      className="w-full h-[calc(100vh-12rem)] rounded-xl overflow-hidden"
+      className={className ?? "w-full h-[calc(100vh-12rem)] rounded-xl overflow-hidden"}
       role="application"
       aria-label="Restaurant map"
     />
