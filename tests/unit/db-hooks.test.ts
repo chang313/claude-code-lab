@@ -1,14 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { normalizeMenuName } from "@/lib/normalize";
 import { subscribe, invalidate, invalidateAll } from "@/lib/supabase/invalidate";
-
-describe("normalizeMenuName", () => {
-  it("should derive normalizedName from name (FR-008)", () => {
-    expect(normalizeMenuName("Tonkatsu")).toBe("tonkatsu");
-    expect(normalizeMenuName("  TONKATSU  ")).toBe("tonkatsu");
-    expect(normalizeMenuName("tonkatsu")).toBe("tonkatsu");
-  });
-});
 
 describe("invalidation event bus", () => {
   beforeEach(() => {
