@@ -1,8 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import BottomNav from "@/components/BottomNav";
-import OfflineBanner from "@/components/OfflineBanner";
 import KakaoScript from "@/components/KakaoScript";
+import AuthLayoutShell from "@/components/AuthLayoutShell";
 
 export const metadata: Metadata = {
   title: "Restaurant Wishlist",
@@ -24,9 +23,7 @@ export default function RootLayout({
     <html lang="ko">
       <body className="bg-gray-50 text-gray-900 min-h-screen pb-16">
         <KakaoScript />
-        <OfflineBanner />
-        <main className="max-w-lg mx-auto px-4 pt-4">{children}</main>
-        <BottomNav />
+        <AuthLayoutShell>{children}</AuthLayoutShell>
       </body>
     </html>
   );

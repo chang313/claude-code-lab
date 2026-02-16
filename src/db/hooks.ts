@@ -1,22 +1,96 @@
 "use client";
 
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "./index";
+import { createClient } from "@/lib/supabase/client";
+import { useSupabaseQuery } from "@/lib/supabase/use-query";
+import { invalidate } from "@/lib/supabase/invalidate";
 import { normalizeMenuName } from "@/lib/normalize";
 import type { KakaoPlace, Restaurant, MenuItem, MenuGroup } from "@/types";
+
+const RESTAURANTS_KEY = "restaurants";
+const MENU_ITEMS_KEY = "menu_items";
+
+function getSupabase() {
+  return createClient();
+}
+
+interface DbRestaurant {
+  id: string;
+  kakao_place_id: string;
+  name: string;
+  address: string;
+  category: string;
+  lat: number;
+  lng: number;
+  place_url: string | null;
+  star_rating: number;
+  created_at: string;
+}
+
+interface DbMenuItem {
+  id: number;
+  restaurant_id: string;
+  name: string;
+  normalized_name: string;
+  created_at: string;
+}
+
+function mapDbRestaurant(row: DbRestaurant): Restaurant {
+  return {
+    id: row.kakao_place_id,
+    name: row.name,
+    address: row.address,
+    category: row.category,
+    lat: row.lat,
+    lng: row.lng,
+    placeUrl: row.place_url ?? undefined,
+    starRating: row.star_rating,
+    createdAt: row.created_at,
+  };
+}
+
+function mapDbMenuItem(row: DbMenuItem): MenuItem {
+  return {
+    id: row.id,
+    restaurantId: row.restaurant_id,
+    name: row.name,
+    normalizedName: row.normalized_name,
+    createdAt: row.created_at,
+  };
+}
 
 // === Wishlist Operations ===
 
 export function useWishlist() {
-  const restaurants = useLiveQuery(
-    () =>
-      db.restaurants
-        .orderBy("[starRating+createdAt]")
-        .reverse()
-        .toArray(),
-    [],
+  const { data, isLoading } = useSupabaseQuery<Restaurant[]>(
+    RESTAURANTS_KEY,
+    async () => {
+      const { data, error } = await getSupabase()
+        .from("restaurants")
+        .select("*")
+        .order("star_rating", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data as DbRestaurant[]).map(mapDbRestaurant);
+    },
   );
-  return { restaurants: restaurants ?? [], isLoading: restaurants === undefined };
+  return { restaurants: data ?? [], isLoading };
+}
+
+export function useRestaurant(kakaoPlaceId: string) {
+  const { data, isLoading } = useSupabaseQuery<Restaurant | null>(
+    `${RESTAURANTS_KEY}:${kakaoPlaceId}`,
+    async () => {
+      const { data, error } = await getSupabase()
+        .from("restaurants")
+        .select("*")
+        .eq("kakao_place_id", kakaoPlaceId)
+        .maybeSingle();
+      if (error) throw error;
+      return data ? mapDbRestaurant(data as DbRestaurant) : null;
+    },
+    [kakaoPlaceId],
+  );
+  return { restaurant: data, isLoading };
 }
 
 export function useAddRestaurant() {
@@ -24,80 +98,145 @@ export function useAddRestaurant() {
     place: KakaoPlace,
     starRating: number = 1,
   ): Promise<boolean> => {
-    const existing = await db.restaurants.get(place.id);
-    if (existing) return false;
+    const supabase = getSupabase();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return false;
 
-    const restaurant: Restaurant = {
-      id: place.id,
+    const { error } = await supabase.from("restaurants").insert({
+      user_id: user.id,
+      kakao_place_id: place.id,
       name: place.place_name,
       address: place.road_address_name || place.address_name,
       category: place.category_name,
       lat: parseFloat(place.y),
       lng: parseFloat(place.x),
-      placeUrl: place.place_url,
-      starRating,
-      createdAt: new Date().toISOString(),
-    };
-    await db.restaurants.add(restaurant);
+      place_url: place.place_url,
+      star_rating: starRating,
+    });
+
+    if (error) {
+      if (error.code === "23505") return false; // unique constraint = already exists
+      throw error;
+    }
+
+    invalidate(RESTAURANTS_KEY);
     return true;
   };
   return { addRestaurant };
 }
 
 export function useRemoveRestaurant() {
-  const removeRestaurant = async (id: string): Promise<void> => {
-    await db.transaction("rw", db.restaurants, db.menuItems, async () => {
-      await db.menuItems.where("restaurantId").equals(id).delete();
-      await db.restaurants.delete(id);
-    });
+  const removeRestaurant = async (kakaoPlaceId: string): Promise<void> => {
+    const supabase = getSupabase();
+    const { error } = await supabase
+      .from("restaurants")
+      .delete()
+      .eq("kakao_place_id", kakaoPlaceId);
+    if (error) throw error;
+    invalidate(RESTAURANTS_KEY);
+    invalidate(MENU_ITEMS_KEY);
   };
   return { removeRestaurant };
 }
 
 export function useUpdateStarRating() {
   const updateStarRating = async (
-    id: string,
+    kakaoPlaceId: string,
     rating: 1 | 2 | 3,
   ): Promise<void> => {
-    await db.restaurants.update(id, { starRating: rating });
+    const supabase = getSupabase();
+    const { error } = await supabase
+      .from("restaurants")
+      .update({ star_rating: rating })
+      .eq("kakao_place_id", kakaoPlaceId);
+    if (error) throw error;
+    invalidate(RESTAURANTS_KEY);
+    invalidate(`${RESTAURANTS_KEY}:${kakaoPlaceId}`);
   };
   return { updateStarRating };
 }
 
-export function useIsWishlisted(id: string): boolean {
-  const result = useLiveQuery(() => db.restaurants.get(id), [id]);
-  return result !== undefined && result !== null;
+export function useIsWishlisted(kakaoPlaceId: string): boolean {
+  const { data } = useSupabaseQuery<boolean>(
+    `wishlisted:${kakaoPlaceId}`,
+    async () => {
+      const { count, error } = await getSupabase()
+        .from("restaurants")
+        .select("id", { count: "exact", head: true })
+        .eq("kakao_place_id", kakaoPlaceId);
+      if (error) throw error;
+      return (count ?? 0) > 0;
+    },
+    [kakaoPlaceId],
+  );
+  return data ?? false;
 }
 
 // === Menu Item Operations ===
 
-export function useMenuItems(restaurantId: string) {
-  const menuItems = useLiveQuery(
-    () => db.menuItems.where("restaurantId").equals(restaurantId).toArray(),
-    [restaurantId],
+export function useMenuItems(restaurantKakaoId: string) {
+  const { data, isLoading } = useSupabaseQuery<MenuItem[]>(
+    `${MENU_ITEMS_KEY}:${restaurantKakaoId}`,
+    async () => {
+      const supabase = getSupabase();
+      const { data: restaurant } = await supabase
+        .from("restaurants")
+        .select("id")
+        .eq("kakao_place_id", restaurantKakaoId)
+        .maybeSingle();
+      if (!restaurant) return [];
+
+      const { data, error } = await supabase
+        .from("menu_items")
+        .select("*")
+        .eq("restaurant_id", restaurant.id);
+      if (error) throw error;
+      return (data as DbMenuItem[]).map(mapDbMenuItem);
+    },
+    [restaurantKakaoId],
   );
-  return { menuItems: menuItems ?? [], isLoading: menuItems === undefined };
+  return { menuItems: data ?? [], isLoading };
 }
 
 export function useAddMenuItem() {
   const addMenuItem = async (
-    restaurantId: string,
+    restaurantKakaoId: string,
     name: string,
   ): Promise<void> => {
-    const normalized = normalizeMenuName(name);
-    await db.menuItems.add({
-      restaurantId,
+    const supabase = getSupabase();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: restaurant } = await supabase
+      .from("restaurants")
+      .select("id")
+      .eq("kakao_place_id", restaurantKakaoId)
+      .maybeSingle();
+    if (!restaurant) return;
+
+    const { error } = await supabase.from("menu_items").insert({
+      restaurant_id: restaurant.id,
+      user_id: user.id,
       name: name.trim(),
-      normalizedName: normalized,
-      createdAt: new Date().toISOString(),
+      normalized_name: normalizeMenuName(name),
     });
+    if (error) throw error;
+    invalidate(`${MENU_ITEMS_KEY}:${restaurantKakaoId}`);
+    invalidate(MENU_ITEMS_KEY);
   };
   return { addMenuItem };
 }
 
 export function useRemoveMenuItem() {
   const removeMenuItem = async (id: number): Promise<void> => {
-    await db.menuItems.delete(id);
+    const supabase = getSupabase();
+    const { error } = await supabase.from("menu_items").delete().eq("id", id);
+    if (error) throw error;
+    invalidate(MENU_ITEMS_KEY);
   };
   return { removeMenuItem };
 }
@@ -105,48 +244,65 @@ export function useRemoveMenuItem() {
 // === Menu Grouping Operations ===
 
 export function useMenuGroups() {
-  const groups = useLiveQuery(async (): Promise<MenuGroup[]> => {
-    const allItems = await db.menuItems.toArray();
-    const groupMap = new Map<string, { displayName: string; count: number }>();
+  const { data, isLoading } = useSupabaseQuery<MenuGroup[]>(
+    MENU_ITEMS_KEY,
+    async () => {
+      const { data, error } = await getSupabase()
+        .from("menu_items")
+        .select("name, normalized_name");
+      if (error) throw error;
 
-    for (const item of allItems) {
-      const existing = groupMap.get(item.normalizedName);
-      if (existing) {
-        existing.count++;
-      } else {
-        groupMap.set(item.normalizedName, {
-          displayName: item.name,
-          count: 1,
-        });
+      const groupMap = new Map<string, { displayName: string; count: number }>();
+      for (const item of data as { name: string; normalized_name: string }[]) {
+        const existing = groupMap.get(item.normalized_name);
+        if (existing) {
+          existing.count++;
+        } else {
+          groupMap.set(item.normalized_name, {
+            displayName: item.name,
+            count: 1,
+          });
+        }
       }
-    }
 
-    return Array.from(groupMap.entries())
-      .map(([normalizedName, { displayName, count }]) => ({
-        normalizedName,
-        displayName,
-        count,
-      }))
-      .sort((a, b) => a.normalizedName.localeCompare(b.normalizedName));
-  }, []);
-
-  return { groups: groups ?? [], isLoading: groups === undefined };
+      return Array.from(groupMap.entries())
+        .map(([normalizedName, { displayName, count }]) => ({
+          normalizedName,
+          displayName,
+          count,
+        }))
+        .sort((a, b) => a.normalizedName.localeCompare(b.normalizedName));
+    },
+  );
+  return { groups: data ?? [], isLoading };
 }
 
 export function useRestaurantsByMenu(normalizedMenuName: string) {
-  const restaurants = useLiveQuery(async () => {
-    const items = await db.menuItems
-      .where("normalizedName")
-      .equals(normalizedMenuName)
-      .toArray();
+  const { data, isLoading } = useSupabaseQuery<Restaurant[]>(
+    `${MENU_ITEMS_KEY}:by-menu:${normalizedMenuName}`,
+    async () => {
+      const supabase = getSupabase();
+      const { data: items, error: itemsError } = await supabase
+        .from("menu_items")
+        .select("restaurant_id")
+        .eq("normalized_name", normalizedMenuName);
+      if (itemsError) throw itemsError;
 
-    const restaurantIds = [...new Set(items.map((i) => i.restaurantId))];
-    const results = await db.restaurants.bulkGet(restaurantIds);
-    return results.filter((r): r is Restaurant => r !== undefined);
-  }, [normalizedMenuName]);
+      const restaurantIds = [
+        ...new Set(
+          (items as { restaurant_id: string }[]).map((i) => i.restaurant_id),
+        ),
+      ];
+      if (restaurantIds.length === 0) return [];
 
-  return {
-    restaurants: restaurants ?? [],
-    isLoading: restaurants === undefined,
-  };
+      const { data: restaurants, error } = await supabase
+        .from("restaurants")
+        .select("*")
+        .in("id", restaurantIds);
+      if (error) throw error;
+      return (restaurants as DbRestaurant[]).map(mapDbRestaurant);
+    },
+    [normalizedMenuName],
+  );
+  return { restaurants: data ?? [], isLoading };
 }

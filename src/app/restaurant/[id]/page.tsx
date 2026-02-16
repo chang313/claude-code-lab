@@ -2,9 +2,8 @@
 
 import { use } from "react";
 import { useRouter } from "next/navigation";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/db/index";
 import {
+  useRestaurant,
   useMenuItems,
   useAddMenuItem,
   useRemoveMenuItem,
@@ -21,20 +20,20 @@ export default function RestaurantDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const restaurant = useLiveQuery(() => db.restaurants.get(id), [id]);
+  const { restaurant, isLoading } = useRestaurant(id);
   const { menuItems, isLoading: menuLoading } = useMenuItems(id);
   const { addMenuItem } = useAddMenuItem();
   const { removeMenuItem } = useRemoveMenuItem();
   const { updateStarRating } = useUpdateStarRating();
   const { removeRestaurant } = useRemoveRestaurant();
 
-  if (restaurant === undefined) {
+  if (isLoading) {
     return (
       <div className="text-center py-8 text-gray-400">Loading...</div>
     );
   }
 
-  if (restaurant === null) {
+  if (!restaurant) {
     return (
       <div className="text-center py-8 text-gray-500">
         Restaurant not found
