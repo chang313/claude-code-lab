@@ -4,14 +4,10 @@ import { use } from "react";
 import { useRouter } from "next/navigation";
 import {
   useRestaurant,
-  useMenuItems,
-  useAddMenuItem,
-  useRemoveMenuItem,
   useUpdateStarRating,
   useRemoveRestaurant,
 } from "@/db/hooks";
 import StarRating from "@/components/StarRating";
-import MenuItemList from "@/components/MenuItemList";
 
 export default function RestaurantDetailPage({
   params,
@@ -21,9 +17,6 @@ export default function RestaurantDetailPage({
   const { id } = use(params);
   const router = useRouter();
   const { restaurant, isLoading } = useRestaurant(id);
-  const { menuItems, isLoading: menuLoading } = useMenuItems(id);
-  const { addMenuItem } = useAddMenuItem();
-  const { removeMenuItem } = useRemoveMenuItem();
   const { updateStarRating } = useUpdateStarRating();
   const { removeRestaurant } = useRemoveRestaurant();
 
@@ -67,19 +60,6 @@ export default function RestaurantDetailPage({
           value={restaurant.starRating as 1 | 2 | 3}
           onChange={(rating) => updateStarRating(id, rating)}
         />
-      </div>
-
-      <div>
-        <h2 className="text-lg font-semibold mb-2">Menu Items</h2>
-        {menuLoading ? (
-          <p className="text-sm text-gray-400">Loading...</p>
-        ) : (
-          <MenuItemList
-            items={menuItems.map((m) => ({ id: m.id!, name: m.name }))}
-            onAdd={(name) => addMenuItem(id, name)}
-            onRemove={removeMenuItem}
-          />
-        )}
       </div>
 
       {restaurant.placeUrl && (

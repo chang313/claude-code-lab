@@ -10,14 +10,6 @@ export interface Restaurant {
   createdAt: string;
 }
 
-export interface MenuItem {
-  id?: number;
-  restaurantId: string;
-  name: string;
-  normalizedName: string;
-  createdAt: string;
-}
-
 export interface KakaoPlace {
   id: string;
   place_name: string;
@@ -45,8 +37,8 @@ export interface KakaoSearchResponse {
   };
 }
 
-export interface MenuGroup {
-  normalizedName: string;
-  displayName: string;
+export interface SubcategoryGroup {
+  subcategory: string;
+  restaurants: Restaurant[];
   count: number;
 }

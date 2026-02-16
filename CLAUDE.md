@@ -13,6 +13,8 @@ The claude-code-guide agent may sometimes give incorrect answers. When the user 
 ## Active Technologies
 - TypeScript 5.x (strict mode) + Next.js 15 (App Router), React 19, Tailwind CSS 4, Kakao Maps SDK, Kakao Local REST API, Supabase (Auth + Postgres), @supabase/ssr (001-restaurant-wishlist)
 - Supabase Kakao OAuth for authentication, Supabase Postgres with RLS for cloud-synced data (001-restaurant-wishlist)
+- TypeScript 5.x (strict mode) + Next.js 15 (App Router), React 19, Tailwind CSS 4, Supabase (@supabase/ssr) (003-merge-wishlist-categories)
+- Supabase Postgres (existing `restaurants` table — no schema changes) (003-merge-wishlist-categories)
 
 ## Recent Changes
 - 001-restaurant-wishlist: Migrated from Dexie.js (IndexedDB) to Supabase (Postgres + Kakao OAuth). Dropped offline/guest mode. All data is cloud-synced per user.
