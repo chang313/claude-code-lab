@@ -6,9 +6,9 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
 const ERROR_MESSAGES: Record<string, string> = {
-  exchange_failed: "Login failed. Please try again.",
-  oauth_error: "Authentication was denied or failed.",
-  unknown: "An unexpected error occurred.",
+  exchange_failed: "로그인에 실패했습니다. 다시 시도해 주세요.",
+  oauth_error: "인증이 거부되었거나 실패했습니다.",
+  unknown: "예기치 않은 오류가 발생했습니다.",
 };
 
 function LoginForm() {
@@ -60,7 +60,7 @@ function LoginForm() {
         window.location.href = data.url;
       }
     } catch {
-      setError("Failed to connect. Please check your network.");
+      setError("연결에 실패했습니다. 네트워크를 확인해 주세요.");
       setLoading(false);
     }
   };
@@ -68,9 +68,9 @@ function LoginForm() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen -mt-4 px-4">
       <div className="text-center space-y-6">
-        <h1 className="text-3xl font-bold">Restaurant Wishlist</h1>
+        <h1 className="text-3xl font-bold">맛집 리스트</h1>
         <p className="text-gray-500">
-          Log in to save and sync your restaurant wishlist
+          카카오 로그인으로 맛집을 저장하고 동기화하세요
         </p>
         {error && (
           <p className="text-sm text-red-500 bg-red-50 rounded-lg px-4 py-2">
@@ -119,7 +119,7 @@ function LoginForm() {
               />
             </svg>
           )}
-          {loading ? "Logging in..." : "Log in with Kakao"}
+          {loading ? "로그인 중..." : "카카오로 로그인"}
         </button>
       </div>
     </div>

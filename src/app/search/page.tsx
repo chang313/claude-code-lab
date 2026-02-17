@@ -105,7 +105,7 @@ export default function SearchPage() {
       setLastSearchedBounds(currentBounds);
       setSheetState("peek");
     } catch {
-      setViewportError("Search failed. Tap to try again.");
+      setViewportError("검색에 실패했습니다. 탭하여 다시 시도하세요.");
     } finally {
       setIsViewportLoading(false);
     }
@@ -209,14 +209,14 @@ export default function SearchPage() {
             </div>
           ) : results.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <p className="text-lg">No restaurants found in this area</p>
+              <p className="text-lg">이 지역에서 음식점을 찾을 수 없습니다</p>
               <p className="text-sm mt-1">
-                Try a different search term or move the map to another area
+                다른 검색어를 입력하거나 지도를 이동해 보세요
               </p>
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm text-gray-500">{results.length} results</p>
+              <p className="text-sm text-gray-500">{results.length}개 결과</p>
               {results.map((place) => (
                 <RestaurantCard
                   key={place.id}

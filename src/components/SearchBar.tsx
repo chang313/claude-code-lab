@@ -9,7 +9,7 @@ interface SearchBarProps {
 }
 
 export default function SearchBar({
-  placeholder = "Search restaurants...",
+  placeholder = "맛집 검색...",
   onSearch,
   isLoading = false,
 }: SearchBarProps) {
@@ -31,12 +31,12 @@ export default function SearchBar({
         onChange={(e) => setValue(e.target.value)}
         placeholder={placeholder}
         className="w-full px-4 py-3 pr-12 rounded-xl border border-gray-300 bg-white text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        aria-label="Search restaurants"
+        aria-label="맛집 검색"
       />
       <button
         type="submit"
         className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-blue-500"
-        aria-label="Search"
+        aria-label="검색"
         disabled={isLoading}
       >
         {isLoading ? (

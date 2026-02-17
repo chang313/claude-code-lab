@@ -155,7 +155,7 @@ export default function MapView({
       const infoContent = `
         <div style="padding:8px;min-width:150px;font-size:14px;">
           <strong>${m.name}</strong>
-          ${m.isWishlisted ? '<div style="color:green;font-size:12px;">&#10003; Saved</div>' : ""}
+          ${m.isWishlisted ? '<div style="color:green;font-size:12px;">&#10003; 저장됨</div>' : ""}
         </div>
       `;
       const infoWindow = new window.kakao.maps.InfoWindow({
@@ -177,7 +177,7 @@ export default function MapView({
       ref={containerRef}
       className={className ?? "w-full h-[calc(100vh-12rem)] rounded-xl overflow-hidden"}
       role="application"
-      aria-label="Restaurant map"
+      aria-label="맛집 지도"
     />
   );
 }

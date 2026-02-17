@@ -4,9 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
-  { href: "/", label: "Wishlist", icon: "♥" },
-  { href: "/search", label: "Search", icon: "🔍" },
-  { href: "/my", label: "My", icon: "👤" },
+  { href: "/", label: "맛집", icon: "♥" },
+  { href: "/search", label: "검색", icon: "🔍" },
+  { href: "/users", label: "사람", icon: "👥" },
+  { href: "/my", label: "MY", icon: "👤" },
 ] as const;
 
 export default function BottomNav() {
@@ -15,7 +16,7 @@ export default function BottomNav() {
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40"
-      aria-label="Main navigation"
+      aria-label="메인 내비게이션"
     >
       <div className="max-w-lg mx-auto flex justify-around">
         {tabs.map((tab) => {

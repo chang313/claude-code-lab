@@ -4,8 +4,8 @@ import KakaoScript from "@/components/KakaoScript";
 import AuthLayoutShell from "@/components/AuthLayoutShell";
 
 export const metadata: Metadata = {
-  title: "Restaurant Wishlist",
-  description: "Save and organize your restaurant wishlist by menu items",
+  title: "맛집 리스트",
+  description: "맛집을 저장하고 관리하세요",
 };
 
 export const viewport: Viewport = {
