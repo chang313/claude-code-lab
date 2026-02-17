@@ -95,3 +95,53 @@ export function mapDbProfile(row: DbProfile): UserProfile {
     createdAt: row.created_at,
   };
 }
+
+// === Recommendation types ===
+
+export interface Recommendation {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  kakaoPlaceId: string;
+  restaurantName: string;
+  restaurantCategory: string;
+  restaurantAddress: string;
+  status: "pending" | "accepted" | "ignored";
+  isRead: boolean;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export interface RecommendationWithSender extends Recommendation {
+  sender: UserProfile;
+}
+
+export interface DbRecommendation {
+  id: string;
+  sender_id: string;
+  recipient_id: string;
+  kakao_place_id: string;
+  restaurant_name: string;
+  restaurant_category: string;
+  restaurant_address: string;
+  status: string;
+  is_read: boolean;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+export function mapDbRecommendation(row: DbRecommendation): Recommendation {
+  return {
+    id: row.id,
+    senderId: row.sender_id,
+    recipientId: row.recipient_id,
+    kakaoPlaceId: row.kakao_place_id,
+    restaurantName: row.restaurant_name,
+    restaurantCategory: row.restaurant_category,
+    restaurantAddress: row.restaurant_address,
+    status: row.status as Recommendation["status"],
+    isRead: row.is_read,
+    createdAt: row.created_at,
+    resolvedAt: row.resolved_at,
+  };
+}
