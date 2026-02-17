@@ -15,6 +15,8 @@ The claude-code-guide agent may sometimes give incorrect answers. When the user 
 ## Active Technologies
 - TypeScript 5.x (strict mode) + Next.js 15 (App Router), React 19, Tailwind CSS 4, Kakao Maps SDK, Kakao Local REST API, Supabase (Auth + Postgres), @supabase/ssr
 - Supabase Kakao OAuth for authentication, Supabase Postgres with RLS for cloud-synced data
+- TypeScript 5.x (strict mode) + Next.js 15 (App Router), React 19, Tailwind CSS 4, Kakao Local REST API (004-smart-search)
+- N/A (no database changes — entirely client-side) (004-smart-search)
 
 ## Recent Changes
 - 001-restaurant-wishlist: Migrated from Dexie.js (IndexedDB) to Supabase (Postgres + Kakao OAuth). Dropped offline/guest mode. All data is cloud-synced per user.
