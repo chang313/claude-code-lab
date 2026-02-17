@@ -5,11 +5,13 @@ import SearchBar from "@/components/SearchBar";
 import MapView from "@/components/MapView";
 import BottomSheet from "@/components/BottomSheet";
 import RestaurantCard from "@/components/RestaurantCard";
-import { smartSearch } from "@/lib/kakao";
+import SearchThisAreaButton from "@/components/SearchThisAreaButton";
+import ErrorToast from "@/components/ErrorToast";
+import { smartSearch, viewportSearch, boundsEqual } from "@/lib/kakao";
 import { formatDistance } from "@/lib/format-distance";
 import { useAddRestaurant } from "@/db/hooks";
 import { useIsWishlistedSet } from "@/db/search-hooks";
-import type { KakaoPlace } from "@/types";
+import type { Bounds, KakaoPlace } from "@/types";
 
 type SheetState = "hidden" | "peek" | "expanded";
 
@@ -20,8 +22,23 @@ export default function SearchPage() {
   const [selectedPlace, setSelectedPlace] = useState<KakaoPlace | null>(null);
   const [sheetState, setSheetState] = useState<SheetState>("hidden");
   const [center, setCenter] = useState<{ lat: number; lng: number } | undefined>();
+
+  // Viewport search state
+  const [currentQuery, setCurrentQuery] = useState<string | null>(null);
+  const [currentBounds, setCurrentBounds] = useState<Bounds | null>(null);
+  const [lastSearchedBounds, setLastSearchedBounds] = useState<Bounds | null>(null);
+  const [isViewportLoading, setIsViewportLoading] = useState(false);
+  const [viewportError, setViewportError] = useState<string | null>(null);
+
   const { addRestaurant } = useAddRestaurant();
   const wishlistedIds = useIsWishlistedSet(results.map((r) => r.id));
+
+  // Derive button visibility
+  const showSearchButton =
+    currentQuery !== null &&
+    lastSearchedBounds !== null &&
+    currentBounds !== null &&
+    !boundsEqual(lastSearchedBounds, currentBounds);
 
   // Geolocation for initial map center
   useEffect(() => {
@@ -33,11 +50,19 @@ export default function SearchPage() {
     }
   }, []);
 
-  // Search flow — uses smartSearch for semantic expansion + distance sorting
+  // Bounds change handler from MapView
+  const handleBoundsChange = useCallback((bounds: Bounds) => {
+    setCurrentBounds(bounds);
+  }, []);
+
+  // Initial search — uses smartSearch for semantic expansion + distance sorting
   const handleSearch = useCallback(async (query: string) => {
     setIsLoading(true);
     setHasSearched(true);
     setSelectedPlace(null);
+    setCurrentQuery(query);
+    setLastSearchedBounds(null); // Reset so button doesn't show during auto-fit
+    setViewportError(null);
     try {
       const places = await smartSearch({
         query,
@@ -55,6 +80,36 @@ export default function SearchPage() {
       setIsLoading(false);
     }
   }, [center]);
+
+  // After initial search auto-fits, the map fires onBoundsChange.
+  // We capture this as lastSearchedBounds so the button stays hidden until user moves.
+  useEffect(() => {
+    if (currentQuery && !lastSearchedBounds && currentBounds && hasSearched && !isLoading) {
+      setLastSearchedBounds(currentBounds);
+    }
+  }, [currentQuery, lastSearchedBounds, currentBounds, hasSearched, isLoading]);
+
+  // Viewport re-search — triggered by "Search this area" button
+  const handleViewportSearch = useCallback(async () => {
+    if (!currentQuery || !currentBounds) return;
+    setIsViewportLoading(true);
+    setSelectedPlace(null);
+    setViewportError(null);
+    try {
+      const places = await viewportSearch({
+        query: currentQuery,
+        bounds: currentBounds,
+        ...(center && { userLocation: center }),
+      });
+      setResults(places);
+      setLastSearchedBounds(currentBounds);
+      setSheetState("peek");
+    } catch {
+      setViewportError("Search failed. Tap to try again.");
+    } finally {
+      setIsViewportLoading(false);
+    }
+  }, [currentQuery, currentBounds, center]);
 
   // Marker click handler
   const handleMarkerClick = useCallback(
@@ -86,11 +141,11 @@ export default function SearchPage() {
     [results, wishlistedIds],
   );
 
-  // Auto-fit bounds from results
+  // Auto-fit bounds from results (only for initial search, not viewport re-search)
   const fitBounds = useMemo(() => {
-    if (!hasSearched || markers.length === 0) return undefined;
+    if (!hasSearched || markers.length === 0 || lastSearchedBounds !== null) return undefined;
     return markers.map((m) => ({ lat: m.lat, lng: m.lng }));
-  }, [hasSearched, markers]);
+  }, [hasSearched, markers, lastSearchedBounds]);
 
   return (
     <div className="relative h-[calc(100vh-4rem)]">
@@ -99,14 +154,32 @@ export default function SearchPage() {
         <SearchBar onSearch={handleSearch} isLoading={isLoading} />
       </div>
 
+      {/* "Search this area" button */}
+      <div className="absolute top-16 left-0 right-0 z-20 flex justify-center">
+        <SearchThisAreaButton
+          visible={showSearchButton}
+          isLoading={isViewportLoading}
+          onClick={handleViewportSearch}
+        />
+      </div>
+
       {/* Full-screen map */}
       <MapView
         center={center}
         markers={markers}
         fitBounds={fitBounds}
         onMarkerClick={handleMarkerClick}
+        onBoundsChange={handleBoundsChange}
         className="w-full h-full"
       />
+
+      {/* Error toast */}
+      {viewportError && (
+        <ErrorToast
+          message={viewportError}
+          onDismiss={() => setViewportError(null)}
+        />
+      )}
 
       {/* Selected place detail card */}
       {selectedPlace && (
@@ -130,17 +203,15 @@ export default function SearchPage() {
       {/* Bottom sheet with result list */}
       {hasSearched && (
         <BottomSheet state={sheetState} onStateChange={setSheetState}>
-          {isLoading ? (
+          {isLoading || isViewportLoading ? (
             <div className="flex justify-center py-8">
               <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : results.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <p className="text-lg">No nearby restaurants found</p>
+              <p className="text-lg">No restaurants found in this area</p>
               <p className="text-sm mt-1">
-                {center
-                  ? "Try a different search term or broaden your area"
-                  : "Enable location for better results, or try a different term"}
+                Try a different search term or move the map to another area
               </p>
             </div>
           ) : (

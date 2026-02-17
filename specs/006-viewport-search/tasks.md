@@ -19,8 +19,8 @@
 
 **Purpose**: Type definitions and shared infrastructure
 
-- [ ] T001 Export `Bounds` type (`{ sw: LatLng; ne: LatLng }`) in `src/types/index.ts`
-- [ ] T002 Add `boundsEqual` utility function comparing two `Bounds` objects in `src/lib/kakao.ts`
+- [x] T001 Export `Bounds` type (`{ sw: LatLng; ne: LatLng }`) in `src/types/index.ts`
+- [x] T002 Add `boundsEqual` utility function comparing two `Bounds` objects in `src/lib/kakao.ts`
 
 ---
 
@@ -30,10 +30,10 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T003 Add `rect?: string` parameter to `searchByKeyword` function and pass it as query param (mutually exclusive with `x/y/radius`) in `src/lib/kakao.ts`
-- [ ] T004 Create `paginatedSearch` helper that fetches all pages (up to 3) for a single keyword query, returning combined `KakaoPlace[]`, in `src/lib/kakao.ts`
-- [ ] T005 Create `viewportSearch` function that runs `getExpandedTerms` → `paginatedSearch` per term with `rect` param → dedup → sort by distance → cap at 300 results, in `src/lib/kakao.ts`
-- [ ] T006 Update existing `smartSearch` to use `paginatedSearch` internally (removing `MAX_RESULTS = 45` cap, replacing with 300 cap) in `src/lib/kakao.ts`
+- [x] T003 Add `rect?: string` parameter to `searchByKeyword` function and pass it as query param (mutually exclusive with `x/y/radius`) in `src/lib/kakao.ts`
+- [x] T004 Create `paginatedSearch` helper that fetches all pages (up to 3) for a single keyword query, returning combined `KakaoPlace[]`, in `src/lib/kakao.ts`
+- [x] T005 Create `viewportSearch` function that runs `getExpandedTerms` → `paginatedSearch` per term with `rect` param → dedup → sort by distance → cap at 300 results, in `src/lib/kakao.ts`
+- [x] T006 Update existing `smartSearch` to use `paginatedSearch` internally (removing `MAX_RESULTS = 45` cap, replacing with 300 cap) in `src/lib/kakao.ts`
 
 **Checkpoint**: Core search functions ready — both initial search and viewport search now support full pagination
 
@@ -49,22 +49,22 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T007 [P] [US1] Unit test for `viewportSearch` pagination (fetches all 3 pages per term) in `tests/unit/viewport-search.test.ts`
-- [ ] T008 [P] [US1] Unit test for `viewportSearch` dedup across expanded terms in `tests/unit/viewport-search.test.ts`
-- [ ] T009 [P] [US1] Unit test for `viewportSearch` 300-result cap in `tests/unit/viewport-search.test.ts`
-- [ ] T010 [P] [US1] Unit test for `boundsEqual` utility in `tests/unit/viewport-search.test.ts`
-- [ ] T011 [P] [US1] Unit test for `searchByKeyword` with `rect` parameter in `tests/unit/viewport-search.test.ts`
-- [ ] T012 [P] [US1] Unit test for button visibility logic (visible when bounds differ, hidden when equal or no query) in `tests/unit/search-button.test.ts`
+- [x] T007 [P] [US1] Unit test for `viewportSearch` pagination (fetches all 3 pages per term) in `tests/unit/viewport-search.test.ts`
+- [x] T008 [P] [US1] Unit test for `viewportSearch` dedup across expanded terms in `tests/unit/viewport-search.test.ts`
+- [x] T009 [P] [US1] Unit test for `viewportSearch` 300-result cap in `tests/unit/viewport-search.test.ts`
+- [x] T010 [P] [US1] Unit test for `boundsEqual` utility in `tests/unit/viewport-search.test.ts`
+- [x] T011 [P] [US1] Unit test for `searchByKeyword` with `rect` parameter in `tests/unit/viewport-search.test.ts`
+- [x] T012 [P] [US1] Unit test for button visibility logic (visible when bounds differ, hidden when equal or no query) in `tests/unit/search-button.test.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T013 [P] [US1] Create `SearchThisAreaButton` component (floating pill button, centered on map, shows/hides based on `visible` prop, loading spinner on `isLoading`) in `src/components/SearchThisAreaButton.tsx`
-- [ ] T014 [US1] Add viewport state to search page: `currentQuery`, `currentBounds`, `lastSearchedBounds` state variables in `src/app/search/page.tsx`
-- [ ] T015 [US1] Wire `onBoundsChange` callback from MapView to update `currentBounds` state in `src/app/search/page.tsx`
-- [ ] T016 [US1] Derive `showSearchButton` from `currentQuery`, `currentBounds`, `lastSearchedBounds` using `boundsEqual` in `src/app/search/page.tsx`
-- [ ] T017 [US1] Implement `handleViewportSearch` callback: call `viewportSearch` with `currentBounds` + `currentQuery`, update `results` and `lastSearchedBounds` on success in `src/app/search/page.tsx`
-- [ ] T018 [US1] Update initial `handleSearch` to save `currentQuery` in state and set `lastSearchedBounds` to null (so button doesn't show until map is moved after auto-fit) in `src/app/search/page.tsx`
-- [ ] T019 [US1] Render `SearchThisAreaButton` in search page layout, positioned as floating overlay above the map in `src/app/search/page.tsx`
+- [x] T013 [P] [US1] Create `SearchThisAreaButton` component (floating pill button, centered on map, shows/hides based on `visible` prop, loading spinner on `isLoading`) in `src/components/SearchThisAreaButton.tsx`
+- [x] T014 [US1] Add viewport state to search page: `currentQuery`, `currentBounds`, `lastSearchedBounds` state variables in `src/app/search/page.tsx`
+- [x] T015 [US1] Wire `onBoundsChange` callback from MapView to update `currentBounds` state in `src/app/search/page.tsx`
+- [x] T016 [US1] Derive `showSearchButton` from `currentQuery`, `currentBounds`, `lastSearchedBounds` using `boundsEqual` in `src/app/search/page.tsx`
+- [x] T017 [US1] Implement `handleViewportSearch` callback: call `viewportSearch` with `currentBounds` + `currentQuery`, update `results` and `lastSearchedBounds` on success in `src/app/search/page.tsx`
+- [x] T018 [US1] Update initial `handleSearch` to save `currentQuery` in state and set `lastSearchedBounds` to null (so button doesn't show until map is moved after auto-fit) in `src/app/search/page.tsx`
+- [x] T019 [US1] Render `SearchThisAreaButton` in search page layout, positioned as floating overlay above the map in `src/app/search/page.tsx`
 
 **Checkpoint**: User Story 1 fully functional — search returns >45 results, "Search this area" button works
 
@@ -78,9 +78,9 @@
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] Verify that `results` state replacement in `handleViewportSearch` automatically updates the bottom sheet list (existing binding via `results` → bottom sheet children) in `src/app/search/page.tsx`
-- [ ] T021 [US2] Clear `selectedPlace` state when viewport re-search is triggered (prevent stale detail card) in `src/app/search/page.tsx`
-- [ ] T022 [US2] Ensure marker click on new viewport results correctly selects the place and shows detail card in `src/app/search/page.tsx`
+- [x] T020 [US2] Verify that `results` state replacement in `handleViewportSearch` automatically updates the bottom sheet list (existing binding via `results` → bottom sheet children) in `src/app/search/page.tsx`
+- [x] T021 [US2] Clear `selectedPlace` state when viewport re-search is triggered (prevent stale detail card) in `src/app/search/page.tsx`
+- [x] T022 [US2] Ensure marker click on new viewport results correctly selects the place and shows detail card in `src/app/search/page.tsx`
 
 **Checkpoint**: Bottom sheet always shows current viewport results, no stale data
 
@@ -94,11 +94,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T023 [P] [US3] Create `ErrorToast` component (dismissible, auto-hide after 3 seconds, positioned at bottom above bottom sheet) in `src/components/ErrorToast.tsx`
-- [ ] T024 [US3] Add `viewportError` state variable to search page in `src/app/search/page.tsx`
-- [ ] T025 [US3] Update `handleViewportSearch` with try/catch: on error, set `viewportError` message, keep previous `results` unchanged, keep `SearchThisAreaButton` visible for retry in `src/app/search/page.tsx`
-- [ ] T026 [US3] Render `ErrorToast` when `viewportError` is non-null, with auto-dismiss callback clearing `viewportError` in `src/app/search/page.tsx`
-- [ ] T027 [US3] Add empty-state message when viewport search returns zero results (show in bottom sheet area) in `src/app/search/page.tsx`
+- [x] T023 [P] [US3] Create `ErrorToast` component (dismissible, auto-hide after 3 seconds, positioned at bottom above bottom sheet) in `src/components/ErrorToast.tsx`
+- [x] T024 [US3] Add `viewportError` state variable to search page in `src/app/search/page.tsx`
+- [x] T025 [US3] Update `handleViewportSearch` with try/catch: on error, set `viewportError` message, keep previous `results` unchanged, keep `SearchThisAreaButton` visible for retry in `src/app/search/page.tsx`
+- [x] T026 [US3] Render `ErrorToast` when `viewportError` is non-null, with auto-dismiss callback clearing `viewportError` in `src/app/search/page.tsx`
+- [x] T027 [US3] Add empty-state message when viewport search returns zero results (show in bottom sheet area) in `src/app/search/page.tsx`
 
 **Checkpoint**: Loading, error, and empty states all handled gracefully
 
@@ -108,9 +108,9 @@
 
 **Purpose**: Cleanup, validation, and cross-story improvements
 
-- [ ] T028 Remove dead `MAX_RESULTS = 45` constant if still present in `src/lib/kakao.ts`
-- [ ] T029 Run `pnpm build` to verify no TypeScript or build errors
-- [ ] T030 Run `pnpm test` to verify all unit tests pass
+- [x] T028 Remove dead `MAX_RESULTS = 45` constant if still present in `src/lib/kakao.ts`
+- [x] T029 Run `pnpm build` to verify no TypeScript or build errors
+- [x] T030 Run `pnpm test` to verify all unit tests pass
 - [ ] T031 Manual smoke test: search "chicken" in dense area, verify >45 results, pan map, tap "Search this area", verify results update
 
 ---
