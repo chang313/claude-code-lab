@@ -20,7 +20,7 @@ export default function StarRating({
   size = "md",
 }: StarRatingProps) {
   return (
-    <div className="flex gap-0.5" role="group" aria-label="Star rating">
+    <div className="flex gap-0.5" role="group" aria-label="별점">
       {([1, 2, 3] as const).map((star) => (
         <button
           key={star}
@@ -32,7 +32,7 @@ export default function StarRating({
           } transition-transform ${
             star <= value ? "text-yellow-400" : "text-gray-300"
           }`}
-          aria-label={`${star} star${star > 1 ? "s" : ""}`}
+          aria-label={`${star}점`}
         >
           ★
         </button>

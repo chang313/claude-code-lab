@@ -22,14 +22,14 @@ export default function RestaurantDetailPage({
 
   if (isLoading) {
     return (
-      <div className="text-center py-8 text-gray-400">Loading...</div>
+      <div className="text-center py-8 text-gray-400">로딩 중...</div>
     );
   }
 
   if (!restaurant) {
     return (
       <div className="text-center py-8 text-gray-500">
-        Restaurant not found
+        음식점을 찾을 수 없습니다
       </div>
     );
   }
@@ -45,7 +45,7 @@ export default function RestaurantDetailPage({
         onClick={() => router.back()}
         className="text-sm text-blue-600 hover:text-blue-800"
       >
-        ← Back
+        ← 뒤로
       </button>
 
       <div>
@@ -55,7 +55,7 @@ export default function RestaurantDetailPage({
       </div>
 
       <div className="flex items-center gap-3">
-        <span className="text-sm font-medium text-gray-600">Rating:</span>
+        <span className="text-sm font-medium text-gray-600">평점:</span>
         <StarRating
           value={restaurant.starRating as 1 | 2 | 3}
           onChange={(rating) => updateStarRating(id, rating)}
@@ -69,7 +69,7 @@ export default function RestaurantDetailPage({
           rel="noopener noreferrer"
           className="block text-center text-sm text-blue-600 hover:text-blue-800 underline"
         >
-          View on Kakao Map
+          카카오맵에서 보기
         </a>
       )}
 
@@ -77,7 +77,7 @@ export default function RestaurantDetailPage({
         onClick={handleDelete}
         className="w-full py-2 text-red-600 text-sm font-medium border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
       >
-        Remove from Wishlist
+        맛집에서 삭제
       </button>
     </div>
   );

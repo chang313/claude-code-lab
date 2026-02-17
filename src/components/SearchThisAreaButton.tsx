@@ -37,7 +37,7 @@ export default function SearchThisAreaButton({
           />
         </svg>
       )}
-      Search this area
+      이 지역 검색
     </button>
   );
 }

@@ -31,7 +31,7 @@ export default function MyPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-400">Loading...</p>
+        <p className="text-gray-400">로딩 중...</p>
       </div>
     );
   }
@@ -43,7 +43,7 @@ export default function MyPage() {
 
   return (
     <div className="max-w-lg mx-auto px-4 pt-8 pb-24">
-      <h1 className="text-2xl font-bold mb-6">My Info</h1>
+      <h1 className="text-2xl font-bold mb-6">내 정보</h1>
 
       <div className="flex flex-col items-center gap-4 py-8">
         {avatarUrl ? (
@@ -69,7 +69,7 @@ export default function MyPage() {
         onClick={handleLogout}
         className="w-full mt-6 py-3 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 active:bg-gray-300 transition-colors"
       >
-        Log out
+        로그아웃
       </button>
     </div>
   );

@@ -68,15 +68,15 @@ export default function RestaurantCard({
           <>
             {isWishlisted ? (
               <span className="text-sm text-green-600 font-medium">
-                ✓ Saved
+                ✓ 저장됨
               </span>
             ) : (
               <button
                 onClick={onAddToWishlist}
                 className="px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors"
-                aria-label={`Add ${restaurant.name} to wishlist`}
+                aria-label={`${restaurant.name} 맛집 추가`}
               >
-                + Wishlist
+                + 맛집 추가
               </button>
             )}
           </>
@@ -86,9 +86,9 @@ export default function RestaurantCard({
           <button
             onClick={onRemove}
             className="text-sm text-red-500 hover:text-red-700"
-            aria-label={`Remove ${restaurant.name}`}
+            aria-label={`${restaurant.name} 삭제`}
           >
-            Remove
+            삭제
           </button>
         )}
       </div>
