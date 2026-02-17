@@ -5,7 +5,8 @@ import SearchBar from "@/components/SearchBar";
 import MapView from "@/components/MapView";
 import BottomSheet from "@/components/BottomSheet";
 import RestaurantCard from "@/components/RestaurantCard";
-import { searchByKeyword } from "@/lib/kakao";
+import { smartSearch } from "@/lib/kakao";
+import { formatDistance } from "@/lib/format-distance";
 import { useAddRestaurant, useIsWishlistedSet } from "@/db/search-hooks";
 import type { KakaoPlace } from "@/types";
 
@@ -31,14 +32,20 @@ export default function SearchPage() {
     }
   }, []);
 
-  // Search flow
+  // Search flow — uses smartSearch for semantic expansion + distance sorting
   const handleSearch = useCallback(async (query: string) => {
     setIsLoading(true);
     setHasSearched(true);
     setSelectedPlace(null);
     try {
-      const response = await searchByKeyword({ query, size: 15 });
-      setResults(response.documents);
+      const places = await smartSearch({
+        query,
+        ...(center && {
+          x: String(center.lng),
+          y: String(center.lat),
+        }),
+      });
+      setResults(places);
       setSheetState("peek");
     } catch {
       setResults([]);
@@ -46,7 +53,7 @@ export default function SearchPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [center]);
 
   // Marker click handler
   const handleMarkerClick = useCallback(
@@ -112,6 +119,7 @@ export default function SearchPage() {
               starRating: 1,
             }}
             variant="search-result"
+            distance={formatDistance(selectedPlace.distance)}
             isWishlisted={wishlistedIds.has(selectedPlace.id)}
             onAddToWishlist={() => handleAdd(selectedPlace)}
           />
@@ -127,8 +135,12 @@ export default function SearchPage() {
             </div>
           ) : results.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <p className="text-lg">No restaurants found</p>
-              <p className="text-sm mt-1">Try a different search term</p>
+              <p className="text-lg">No nearby restaurants found</p>
+              <p className="text-sm mt-1">
+                {center
+                  ? "Try a different search term or broaden your area"
+                  : "Enable location for better results, or try a different term"}
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -144,6 +156,7 @@ export default function SearchPage() {
                     starRating: 1,
                   }}
                   variant="search-result"
+                  distance={formatDistance(place.distance)}
                   isWishlisted={wishlistedIds.has(place.id)}
                   onAddToWishlist={() => handleAdd(place)}
                 />

@@ -1,4 +1,5 @@
-import type { KakaoSearchResponse } from "@/types";
+import type { KakaoPlace, KakaoSearchResponse } from "@/types";
+import { getExpandedTerms } from "./search-expansions";
 
 const BASE_URL = "https://dapi.kakao.com/v2/local/search";
 
@@ -14,6 +15,8 @@ export async function searchByKeyword(params: {
   size?: number;
   x?: string;
   y?: string;
+  radius?: number;
+  sort?: "accuracy" | "distance";
 }): Promise<KakaoSearchResponse> {
   const url = new URL(`${BASE_URL}/keyword`);
   url.searchParams.set("query", params.query);
@@ -22,6 +25,8 @@ export async function searchByKeyword(params: {
   if (params.size) url.searchParams.set("size", String(params.size));
   if (params.x) url.searchParams.set("x", params.x);
   if (params.y) url.searchParams.set("y", params.y);
+  if (params.radius != null) url.searchParams.set("radius", String(params.radius));
+  if (params.sort) url.searchParams.set("sort", params.sort);
 
   const res = await fetch(url.toString(), {
     headers: { Authorization: `KakaoAK ${getApiKey()}` },
@@ -29,6 +34,56 @@ export async function searchByKeyword(params: {
 
   if (!res.ok) throw new Error(`Kakao API error: ${res.status}`);
   return res.json();
+}
+
+const MAX_RESULTS = 45;
+const DEFAULT_RADIUS = 5000;
+
+export async function smartSearch(params: {
+  query: string;
+  x?: string;
+  y?: string;
+  radius?: number;
+}): Promise<KakaoPlace[]> {
+  const terms = getExpandedTerms(params.query);
+  const hasLocation = params.x && params.y;
+
+  const results = await Promise.allSettled(
+    terms.map((term) =>
+      searchByKeyword({
+        query: term,
+        size: 15,
+        ...(hasLocation && {
+          x: params.x,
+          y: params.y,
+          radius: params.radius ?? DEFAULT_RADIUS,
+          sort: "distance" as const,
+        }),
+      }),
+    ),
+  );
+
+  const seen = new Set<string>();
+  const merged: KakaoPlace[] = [];
+
+  for (const result of results) {
+    if (result.status !== "fulfilled") continue;
+    for (const doc of result.value.documents) {
+      if (seen.has(doc.id)) continue;
+      seen.add(doc.id);
+      merged.push(doc);
+    }
+  }
+
+  if (hasLocation) {
+    merged.sort((a, b) => {
+      const da = parseInt(a.distance ?? "0", 10);
+      const db = parseInt(b.distance ?? "0", 10);
+      return da - db;
+    });
+  }
+
+  return merged.slice(0, MAX_RESULTS);
 }
 
 export async function searchByBounds(params: {
