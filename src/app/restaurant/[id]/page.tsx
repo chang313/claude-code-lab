@@ -1,7 +1,7 @@
 "use client";
 
 import { use } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   useRestaurant,
   useUpdateStarRating,
@@ -16,6 +16,8 @@ export default function RestaurantDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const readOnly = searchParams.get("readOnly") === "true";
   const { restaurant, isLoading } = useRestaurant(id);
   const { updateStarRating } = useUpdateStarRating();
   const { removeRestaurant } = useRemoveRestaurant();
@@ -56,10 +58,18 @@ export default function RestaurantDetailPage({
 
       <div className="flex items-center gap-3">
         <span className="text-sm font-medium text-gray-600">평점:</span>
-        <StarRating
-          value={restaurant.starRating as 1 | 2 | 3}
-          onChange={(rating) => updateStarRating(id, rating)}
-        />
+        {readOnly ? (
+          <StarRating
+            value={restaurant.starRating as 1 | 2 | 3}
+            onChange={() => {}}
+            size="sm"
+          />
+        ) : (
+          <StarRating
+            value={restaurant.starRating as 1 | 2 | 3}
+            onChange={(rating) => updateStarRating(id, rating)}
+          />
+        )}
       </div>
 
       {restaurant.placeUrl && (
@@ -73,12 +83,14 @@ export default function RestaurantDetailPage({
         </a>
       )}
 
-      <button
-        onClick={handleDelete}
-        className="w-full py-2 text-red-600 text-sm font-medium border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
-      >
-        맛집에서 삭제
-      </button>
+      {!readOnly && (
+        <button
+          onClick={handleDelete}
+          className="w-full py-2 text-red-600 text-sm font-medium border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+        >
+          맛집에서 삭제
+        </button>
+      )}
     </div>
   );
 }

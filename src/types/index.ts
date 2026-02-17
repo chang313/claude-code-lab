@@ -52,3 +52,46 @@ export interface SubcategoryGroup {
   restaurants: Restaurant[];
   count: number;
 }
+
+// === Social / Profile types ===
+
+export interface UserProfile {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+  createdAt: string;
+}
+
+export interface UserProfileWithCounts extends UserProfile {
+  followerCount: number;
+  followingCount: number;
+}
+
+export interface FollowRelationship {
+  followerId: string;
+  followedId: string;
+  createdAt: string;
+}
+
+export interface DbProfile {
+  id: string;
+  display_name: string;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbFollow {
+  follower_id: string;
+  followed_id: string;
+  created_at: string;
+}
+
+export function mapDbProfile(row: DbProfile): UserProfile {
+  return {
+    id: row.id,
+    displayName: row.display_name,
+    avatarUrl: row.avatar_url,
+    createdAt: row.created_at,
+  };
+}
