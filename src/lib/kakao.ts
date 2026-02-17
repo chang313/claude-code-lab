@@ -30,22 +30,3 @@ export async function searchByKeyword(params: {
   if (!res.ok) throw new Error(`Kakao API error: ${res.status}`);
   return res.json();
 }
-
-export async function searchByBounds(params: {
-  rect: string;
-  page?: number;
-  size?: number;
-}): Promise<KakaoSearchResponse> {
-  const url = new URL(`${BASE_URL}/category`);
-  url.searchParams.set("category_group_code", "FD6");
-  url.searchParams.set("rect", params.rect);
-  if (params.page) url.searchParams.set("page", String(params.page));
-  if (params.size) url.searchParams.set("size", String(params.size));
-
-  const res = await fetch(url.toString(), {
-    headers: { Authorization: `KakaoAK ${getApiKey()}` },
-  });
-
-  if (!res.ok) throw new Error(`Kakao API error: ${res.status}`);
-  return res.json();
-}
