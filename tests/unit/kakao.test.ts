@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { searchByKeyword, searchByBounds } from "@/lib/kakao";
+import { searchByKeyword, smartSearch } from "@/lib/kakao";
+import { getExpandedTerms } from "@/lib/search-expansions";
 
 const mockResponse = {
   documents: [
@@ -12,6 +13,7 @@ const mockResponse = {
       category_name: "음식점 > 양식 > 피자",
       x: "127.0",
       y: "37.5",
+      distance: "500",
       place_url: "https://place.map.kakao.com/123",
     },
   ],
@@ -71,15 +73,163 @@ describe("searchByKeyword", () => {
       "Kakao API error: 401",
     );
   });
-});
 
-describe("searchByBounds", () => {
-  it("should include rect parameter and FD6 category", async () => {
-    await searchByBounds({ rect: "126.9,37.4,127.1,37.6" });
+  it("should include location params when provided", async () => {
+    await searchByKeyword({
+      query: "pizza",
+      x: "127.0",
+      y: "37.5",
+      radius: 5000,
+      sort: "distance",
+    });
 
     const fetchCall = vi.mocked(fetch).mock.calls[0];
     const url = new URL(fetchCall[0] as string);
-    expect(url.searchParams.get("rect")).toBe("126.9,37.4,127.1,37.6");
-    expect(url.searchParams.get("category_group_code")).toBe("FD6");
+    expect(url.searchParams.get("x")).toBe("127.0");
+    expect(url.searchParams.get("y")).toBe("37.5");
+    expect(url.searchParams.get("radius")).toBe("5000");
+    expect(url.searchParams.get("sort")).toBe("distance");
+  });
+});
+
+describe("getExpandedTerms", () => {
+  it("should return expanded terms for an exact trigger match", () => {
+    const terms = getExpandedTerms("chicken");
+    expect(terms).toContain("치킨");
+    expect(terms).toContain("KFC");
+    expect(terms.length).toBeGreaterThan(1);
+  });
+
+  it("should return original query when no trigger matches", () => {
+    const terms = getExpandedTerms("some random food");
+    expect(terms).toEqual(["some random food"]);
+  });
+
+  it("should be case-insensitive", () => {
+    const terms = getExpandedTerms("CHICKEN");
+    expect(terms).toContain("치킨");
+  });
+
+  it("should match when query contains a trigger as substring", () => {
+    const terms = getExpandedTerms("치킨 맛집");
+    expect(terms.length).toBeGreaterThan(1);
+  });
+
+  it("should cap results at 5 terms", () => {
+    const terms = getExpandedTerms("chicken");
+    expect(terms.length).toBeLessThanOrEqual(5);
+  });
+
+  it("should include original query first when not already in terms list", () => {
+    const terms = getExpandedTerms("chicken");
+    expect(terms[0]).toBe("chicken");
+  });
+});
+
+describe("smartSearch", () => {
+  it("should deduplicate results by id across parallel queries", async () => {
+    const doc1 = { ...mockResponse.documents[0], id: "1" };
+    const doc2 = { ...mockResponse.documents[0], id: "2" };
+    const duplicateDoc1 = { ...mockResponse.documents[0], id: "1" };
+
+    let callCount = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(() => {
+        callCount++;
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              ...mockResponse,
+              documents: callCount === 1 ? [doc1, doc2] : [duplicateDoc1],
+            }),
+        });
+      }),
+    );
+
+    const results = await smartSearch({ query: "chicken" });
+    const ids = results.map((r) => r.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("should sort by distance when coordinates are provided", async () => {
+    const near = { ...mockResponse.documents[0], id: "1", distance: "100" };
+    const far = { ...mockResponse.documents[0], id: "2", distance: "5000" };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({ ...mockResponse, documents: [far, near] }),
+      }),
+    );
+
+    const results = await smartSearch({
+      query: "pizza",
+      x: "127.0",
+      y: "37.5",
+    });
+
+    expect(results[0].id).toBe("1");
+    expect(results[1].id).toBe("2");
+  });
+
+  it("should pass location params to searchByKeyword when provided", async () => {
+    await smartSearch({ query: "pizza", x: "127.0", y: "37.5" });
+
+    const fetchCall = vi.mocked(fetch).mock.calls[0];
+    const url = new URL(fetchCall[0] as string);
+    expect(url.searchParams.get("x")).toBe("127.0");
+    expect(url.searchParams.get("y")).toBe("37.5");
+    expect(url.searchParams.get("radius")).toBe("5000");
+    expect(url.searchParams.get("sort")).toBe("distance");
+  });
+
+  it("should not include location params when coordinates are absent", async () => {
+    await smartSearch({ query: "pizza" });
+
+    const fetchCall = vi.mocked(fetch).mock.calls[0];
+    const url = new URL(fetchCall[0] as string);
+    expect(url.searchParams.get("x")).toBeNull();
+    expect(url.searchParams.get("sort")).toBeNull();
+  });
+
+  it("should cap results at 45", async () => {
+    const docs = Array.from({ length: 15 }, (_, i) => ({
+      ...mockResponse.documents[0],
+      id: String(i),
+    }));
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({ ...mockResponse, documents: docs }),
+      }),
+    );
+
+    const results = await smartSearch({ query: "chicken" });
+    expect(results.length).toBeLessThanOrEqual(45);
+  });
+
+  it("should ignore failed parallel fetches", async () => {
+    let callCount = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount === 2) return Promise.resolve({ ok: false, status: 500 });
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockResponse),
+        });
+      }),
+    );
+
+    const results = await smartSearch({ query: "chicken" });
+    expect(results.length).toBeGreaterThan(0);
   });
 });
