@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `claude-code-lab` is a mobile-first web app for managing restaurant wishlists with Kakao Maps integration. Built with Next.js 15 App Router, it uses Supabase for authentication (Kakao OAuth) and cloud-synced data storage.
 
-**Key Features**: Smart search with semantic expansion (e.g., "chicken" finds KFC) and distance sorting, integrated map view with markers + bottom sheet, wishlist with star ratings, per-user cloud sync.
+**Key Features**: Viewport-based search ("Search this area" on pan/zoom, up to 300 results) with semantic expansion (e.g., "chicken" finds KFC) and distance sorting, integrated map view with markers + bottom sheet, wishlist with star ratings, per-user cloud sync.
 
 ## Claude Code Guide Usage
 
@@ -22,6 +22,7 @@ The claude-code-guide agent may sometimes give incorrect answers. When the user 
 - 003-merge-wishlist-categories: Replaced flat wishlist with auto-categorized accordion view (grouped by Kakao subcategory). Removed By Menu tab. Improved auth callback error handling and login UX.
 - 004-smart-search: Added semantic query expansion (12 food category dictionary) and distance-sorted results. Searching "chicken" now finds KFC, BBQ, etc. Results sorted nearest-first with distance labels. Uses Kakao API `sort=distance` + `radius=5000m`. Parallel queries via `Promise.allSettled` with dedup.
 - 005-remove-map-tab: Removed standalone Map tab (redundant with unified search+map page). Added `/map` → `/search` permanent redirect. Cleaned up dead `searchByBounds` code.
+- 006-viewport-search: Replaced fixed 5km-radius/45-result search with viewport-based search. "Search this area" button on pan/zoom, full pagination (up to 3 pages per term), 300-result cap. Error toast with retry on failure.
 
 ## Deployment
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
+import type { Bounds } from "@/types";
 
 interface MapMarker {
   id: string;
@@ -8,11 +9,6 @@ interface MapMarker {
   lng: number;
   name: string;
   isWishlisted: boolean;
-}
-
-interface Bounds {
-  sw: { lat: number; lng: number };
-  ne: { lat: number; lng: number };
 }
 
 interface MapViewProps {
