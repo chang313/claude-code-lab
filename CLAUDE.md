@@ -23,6 +23,7 @@ The claude-code-guide agent may sometimes give incorrect answers. When the user 
 - 004-smart-search: Added semantic query expansion (12 food category dictionary) and distance-sorted results. Searching "chicken" now finds KFC, BBQ, etc. Results sorted nearest-first with distance labels. Uses Kakao API `sort=distance` + `radius=5000m`. Parallel queries via `Promise.allSettled` with dedup.
 - 005-remove-map-tab: Removed standalone Map tab (redundant with unified search+map page). Added `/map` → `/search` permanent redirect. Cleaned up dead `searchByBounds` code.
 - 006-viewport-search: Replaced fixed 5km-radius/45-result search with viewport-based search. "Search this area" button on pan/zoom, full pagination (up to 3 pages per term), 300-result cap. Error toast with retry on failure.
+- 007-social-follow: Added social follow system — user search, follow/unfollow, profile pages (`/users`, `/users/[id]`), and public wishlist viewing. New DB tables: `profiles` and `follows`. `restaurants` RLS updated from per-user to all-authenticated-users. Requires manual Supabase SQL migrations (see `specs/007-social-follow/data-model.md`).
 
 ## Deployment
 
@@ -39,6 +40,10 @@ Deployed on Vercel. Package manager: pnpm.
 1. Supabase Dashboard > Auth > URL Configuration > Add `https://<domain>/auth/callback`
 2. Kakao Developer Console > App Settings > Add redirect URI
 3. Missing env vars = `MIDDLEWARE_INVOCATION_FAILED`; missing callback URL = login hangs after redirect
+
+**Database Migrations** (manual — Supabase does not auto-apply):
+- Run migration SQL from `specs/NNN-feature-name/data-model.md` in Supabase Dashboard > SQL Editor before deploying features that add tables.
+- Feature 007 requires: `profiles` table, `follows` table, updated `restaurants` RLS policy (see `specs/007-social-follow/data-model.md`).
 
 ### Local Development
 ```bash
