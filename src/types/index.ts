@@ -37,6 +37,16 @@ export interface KakaoSearchResponse {
   };
 }
 
+export interface LatLng {
+  lat: number;
+  lng: number;
+}
+
+export interface Bounds {
+  sw: LatLng;
+  ne: LatLng;
+}
+
 export interface SubcategoryGroup {
   subcategory: string;
   restaurants: Restaurant[];

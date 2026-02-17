@@ -196,7 +196,7 @@ describe("smartSearch", () => {
     expect(url.searchParams.get("sort")).toBeNull();
   });
 
-  it("should cap results at 45", async () => {
+  it("should cap results at 300", async () => {
     const docs = Array.from({ length: 15 }, (_, i) => ({
       ...mockResponse.documents[0],
       id: String(i),
@@ -212,7 +212,7 @@ describe("smartSearch", () => {
     );
 
     const results = await smartSearch({ query: "chicken" });
-    expect(results.length).toBeLessThanOrEqual(45);
+    expect(results.length).toBeLessThanOrEqual(300);
   });
 
   it("should ignore failed parallel fetches", async () => {

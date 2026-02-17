@@ -1,4 +1,4 @@
-import type { KakaoPlace, KakaoSearchResponse } from "@/types";
+import type { Bounds, KakaoPlace, KakaoSearchResponse } from "@/types";
 import { getExpandedTerms } from "./search-expansions";
 
 const BASE_URL = "https://dapi.kakao.com/v2/local/search";
@@ -16,6 +16,7 @@ export async function searchByKeyword(params: {
   x?: string;
   y?: string;
   radius?: number;
+  rect?: string;
   sort?: "accuracy" | "distance";
 }): Promise<KakaoSearchResponse> {
   const url = new URL(`${BASE_URL}/keyword`);
@@ -25,7 +26,11 @@ export async function searchByKeyword(params: {
   if (params.size) url.searchParams.set("size", String(params.size));
   if (params.x) url.searchParams.set("x", params.x);
   if (params.y) url.searchParams.set("y", params.y);
-  if (params.radius != null) url.searchParams.set("radius", String(params.radius));
+  if (params.rect) {
+    url.searchParams.set("rect", params.rect);
+  } else if (params.radius != null) {
+    url.searchParams.set("radius", String(params.radius));
+  }
   if (params.sort) url.searchParams.set("sort", params.sort);
 
   const res = await fetch(url.toString(), {
@@ -36,43 +41,55 @@ export async function searchByKeyword(params: {
   return res.json();
 }
 
-const MAX_RESULTS = 45;
+const MAX_RESULTS = 300;
 const DEFAULT_RADIUS = 5000;
 
-export async function smartSearch(params: {
+export function boundsEqual(a: Bounds, b: Bounds): boolean {
+  const EPS = 1e-6;
+  return (
+    Math.abs(a.sw.lat - b.sw.lat) < EPS &&
+    Math.abs(a.sw.lng - b.sw.lng) < EPS &&
+    Math.abs(a.ne.lat - b.ne.lat) < EPS &&
+    Math.abs(a.ne.lng - b.ne.lng) < EPS
+  );
+}
+
+function boundsToRect(bounds: Bounds): string {
+  return `${bounds.sw.lng},${bounds.sw.lat},${bounds.ne.lng},${bounds.ne.lat}`;
+}
+
+async function paginatedSearch(params: {
   query: string;
+  size?: number;
   x?: string;
   y?: string;
   radius?: number;
+  rect?: string;
+  sort?: "accuracy" | "distance";
 }): Promise<KakaoPlace[]> {
-  const terms = getExpandedTerms(params.query);
-  const hasLocation = params.x && params.y;
+  const size = params.size ?? 15;
+  const all: KakaoPlace[] = [];
 
-  const results = await Promise.allSettled(
-    terms.map((term) =>
-      searchByKeyword({
-        query: term,
-        size: 15,
-        ...(hasLocation && {
-          x: params.x,
-          y: params.y,
-          radius: params.radius ?? DEFAULT_RADIUS,
-          sort: "distance" as const,
-        }),
-      }),
-    ),
-  );
+  for (let page = 1; page <= 3; page++) {
+    const res = await searchByKeyword({ ...params, page, size });
+    all.push(...res.documents);
+    if (res.meta.is_end) break;
+  }
 
+  return all;
+}
+
+function deduplicateAndSort(
+  places: KakaoPlace[],
+  hasLocation: boolean,
+): KakaoPlace[] {
   const seen = new Set<string>();
   const merged: KakaoPlace[] = [];
 
-  for (const result of results) {
-    if (result.status !== "fulfilled") continue;
-    for (const doc of result.value.documents) {
-      if (seen.has(doc.id)) continue;
-      seen.add(doc.id);
-      merged.push(doc);
-    }
+  for (const doc of places) {
+    if (seen.has(doc.id)) continue;
+    seen.add(doc.id);
+    merged.push(doc);
   }
 
   if (hasLocation) {
@@ -84,4 +101,68 @@ export async function smartSearch(params: {
   }
 
   return merged.slice(0, MAX_RESULTS);
+}
+
+export async function smartSearch(params: {
+  query: string;
+  x?: string;
+  y?: string;
+  radius?: number;
+}): Promise<KakaoPlace[]> {
+  const terms = getExpandedTerms(params.query);
+  const hasLocation = !!(params.x && params.y);
+
+  const results = await Promise.allSettled(
+    terms.map((term) =>
+      paginatedSearch({
+        query: term,
+        ...(hasLocation && {
+          x: params.x,
+          y: params.y,
+          radius: params.radius ?? DEFAULT_RADIUS,
+          sort: "distance" as const,
+        }),
+      }),
+    ),
+  );
+
+  const all: KakaoPlace[] = [];
+  for (const result of results) {
+    if (result.status !== "fulfilled") continue;
+    all.push(...result.value);
+  }
+
+  return deduplicateAndSort(all, hasLocation);
+}
+
+export async function viewportSearch(params: {
+  query: string;
+  bounds: Bounds;
+  userLocation?: { lat: number; lng: number };
+}): Promise<KakaoPlace[]> {
+  const terms = getExpandedTerms(params.query);
+  const rect = boundsToRect(params.bounds);
+  const hasLocation = !!params.userLocation;
+
+  const results = await Promise.allSettled(
+    terms.map((term) =>
+      paginatedSearch({
+        query: term,
+        rect,
+        ...(hasLocation && {
+          x: String(params.userLocation!.lng),
+          y: String(params.userLocation!.lat),
+          sort: "distance" as const,
+        }),
+      }),
+    ),
+  );
+
+  const all: KakaoPlace[] = [];
+  for (const result of results) {
+    if (result.status !== "fulfilled") continue;
+    all.push(...result.value);
+  }
+
+  return deduplicateAndSort(all, hasLocation);
 }
