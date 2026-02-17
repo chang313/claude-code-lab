@@ -33,7 +33,7 @@ export default function OfflineBanner({ forceOffline }: OfflineBannerProps) {
       role="alert"
       className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-white text-center py-2 text-sm font-medium"
     >
-      You are offline. All features require an internet connection.
+      오프라인 상태입니다. 모든 기능은 인터넷 연결이 필요합니다.
     </div>
   );
 }
