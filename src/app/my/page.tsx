@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import UserProfileView from "@/components/UserProfileView";
 
 export default function MyPage() {
   const router = useRouter();
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -26,13 +28,17 @@ export default function MyPage() {
         },
         { onConflict: "id" },
       );
-      router.replace(`/users/${data.user.id}`);
+      setUserId(data.user.id);
     });
   }, [router]);
 
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <p className="text-gray-400">로딩 중...</p>
-    </div>
-  );
+  if (!userId) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-gray-400">로딩 중...</p>
+      </div>
+    );
+  }
+
+  return <UserProfileView userId={userId} isOwnProfile={true} />;
 }
