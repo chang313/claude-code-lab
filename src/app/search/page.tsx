@@ -7,7 +7,8 @@ import BottomSheet from "@/components/BottomSheet";
 import RestaurantCard from "@/components/RestaurantCard";
 import { smartSearch } from "@/lib/kakao";
 import { formatDistance } from "@/lib/format-distance";
-import { useAddRestaurant, useIsWishlistedSet } from "@/db/search-hooks";
+import { useAddRestaurant } from "@/db/hooks";
+import { useIsWishlistedSet } from "@/db/search-hooks";
 import type { KakaoPlace } from "@/types";
 
 type SheetState = "hidden" | "peek" | "expanded";

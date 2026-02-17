@@ -21,6 +21,7 @@ The claude-code-guide agent may sometimes give incorrect answers. When the user 
 - 002-integrate-search-tabs: Merged Search & Map tabs into unified search+map page with bottom sheet, auto-fit bounds, marker interaction.
 - 003-merge-wishlist-categories: Replaced flat wishlist with auto-categorized accordion view (grouped by Kakao subcategory). Removed By Menu tab. Improved auth callback error handling and login UX.
 - 004-smart-search: Added semantic query expansion (12 food category dictionary) and distance-sorted results. Searching "chicken" now finds KFC, BBQ, etc. Results sorted nearest-first with distance labels. Uses Kakao API `sort=distance` + `radius=5000m`. Parallel queries via `Promise.allSettled` with dedup.
+- 005-remove-map-tab: Removed standalone Map tab (redundant with unified search+map page). Added `/map` → `/search` permanent redirect. Cleaned up dead `searchByBounds` code.
 
 ## Deployment
 
@@ -43,3 +44,10 @@ Deployed on Vercel. Package manager: pnpm.
 cp .env.example .env.local  # fill in values
 pnpm install && pnpm dev
 ```
+
+## Custom Commands
+
+Git workflow commands in `.claude/commands/`:
+
+- **`/feature-cleanup <branch>`** — After a PR is merged, removes the worktree, deletes local/remote branches, and cleans stray files. Run `git fetch --prune` first.
+- **`/squash-merge-sync <branch>`** — After a squash-merged PR, cherry-picks orphaned commits (added after PR was opened) onto main. Verifies build before pushing.
