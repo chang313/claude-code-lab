@@ -11,6 +11,7 @@ interface RestaurantCardProps {
     starRating: number;
   };
   variant: "search-result" | "wishlist";
+  distance?: string;
   isWishlisted?: boolean;
   onAddToWishlist?: () => void;
   onRemove?: () => void;
@@ -21,6 +22,7 @@ interface RestaurantCardProps {
 export default function RestaurantCard({
   restaurant,
   variant,
+  distance,
   isWishlisted,
   onAddToWishlist,
   onRemove,
@@ -45,7 +47,12 @@ export default function RestaurantCard({
           {restaurant.name}
         </h3>
         <p className="text-sm text-gray-500 mt-1">{restaurant.address}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{restaurant.category}</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <p className="text-xs text-gray-400">{restaurant.category}</p>
+          {distance && (
+            <span className="text-xs font-medium text-blue-600">{distance}</span>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center justify-between mt-3">
