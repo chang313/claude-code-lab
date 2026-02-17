@@ -52,6 +52,24 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // Auto-create/update profile from Kakao OAuth metadata
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const meta = user.user_metadata ?? {};
+        await supabase.from("profiles").upsert(
+          {
+            id: user.id,
+            display_name:
+              meta.name || meta.full_name || meta.user_name || "User",
+            avatar_url: meta.avatar_url || meta.picture || null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "id" },
+        );
+      }
+
       const redirectUrl = getRedirectUrl(request, origin, next);
       const response = NextResponse.redirect(redirectUrl);
       // Apply auth cookies directly to the redirect response
