@@ -17,6 +17,7 @@ interface RestaurantCardProps {
   onRemove?: () => void;
   onStarChange?: (rating: 1 | 2 | 3) => void;
   onClick?: () => void;
+  onRecommend?: () => void;
 }
 
 export default function RestaurantCard({
@@ -28,6 +29,7 @@ export default function RestaurantCard({
   onRemove,
   onStarChange,
   onClick,
+  onRecommend,
 }: RestaurantCardProps) {
   return (
     <div
@@ -82,14 +84,27 @@ export default function RestaurantCard({
           </>
         )}
 
-        {variant === "wishlist" && onRemove && (
-          <button
-            onClick={onRemove}
-            className="text-sm text-red-500 hover:text-red-700"
-            aria-label={`${restaurant.name} 삭제`}
-          >
-            삭제
-          </button>
+        {variant === "wishlist" && (
+          <div className="flex items-center gap-3">
+            {onRecommend && (
+              <button
+                onClick={onRecommend}
+                className="text-sm text-blue-500 hover:text-blue-700"
+                aria-label={`${restaurant.name} 추천`}
+              >
+                추천
+              </button>
+            )}
+            {onRemove && (
+              <button
+                onClick={onRemove}
+                className="text-sm text-red-500 hover:text-red-700"
+                aria-label={`${restaurant.name} 삭제`}
+              >
+                삭제
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

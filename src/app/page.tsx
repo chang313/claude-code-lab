@@ -1,19 +1,25 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import RestaurantCard from "@/components/RestaurantCard";
 import CategoryAccordion from "@/components/CategoryAccordion";
+import RecommendModal from "@/components/RecommendModal";
 import {
   useWishlistGrouped,
   useRemoveRestaurant,
   useUpdateStarRating,
 } from "@/db/hooks";
+import type { Restaurant } from "@/types";
 
 export default function WishlistPage() {
   const { groups, isLoading } = useWishlistGrouped();
   const { removeRestaurant } = useRemoveRestaurant();
   const { updateStarRating } = useUpdateStarRating();
   const router = useRouter();
+  const [recommendTarget, setRecommendTarget] = useState<Restaurant | null>(
+    null,
+  );
 
   if (isLoading) {
     return (
@@ -53,11 +59,18 @@ export default function WishlistPage() {
                   }
                   onRemove={() => removeRestaurant(restaurant.id)}
                   onClick={() => router.push(`/restaurant/${restaurant.id}`)}
+                  onRecommend={() => setRecommendTarget(restaurant)}
                 />
               ))}
             </CategoryAccordion>
           ))}
         </div>
+      )}
+      {recommendTarget && (
+        <RecommendModal
+          restaurant={recommendTarget}
+          onClose={() => setRecommendTarget(null)}
+        />
       )}
     </div>
   );
