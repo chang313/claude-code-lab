@@ -27,6 +27,7 @@ The claude-code-guide agent may sometimes give incorrect answers. When the user 
 - 008-korean-localization: Replaced all English UI strings with Korean. "Wishlist" → "맛집" throughout. No i18n framework — direct string replacement.
 - 009-fix-my-tab-redirect: Fixed MY tab — `/my` route now renders own profile inline instead of redirecting to `/users/{id}`. MY tab stays highlighted.
 - 010-rename-my-tab: Renamed bottom nav "MY" tab to "내정보" for consistent Korean navigation (맛집, 검색, 사람, 내정보).
+- 011-restaurant-sharing: Added mutual-follower restaurant recommendation system. Users can recommend restaurants from their own wishlist to mutual followers. New `recommendations` table with RLS, two Postgres functions (`get_mutual_followers`, `get_unread_recommendation_count`). New UI: TopBar with bell-icon badge, RecommendModal, RecommendationCard, `/recommendations` inbox page. Requires manual Supabase SQL migrations (see `specs/011-restaurant-sharing/data-model.md`).
 
 ## Deployment
 
@@ -47,6 +48,7 @@ Deployed on Vercel. Package manager: pnpm.
 **Database Migrations** (manual — Supabase does not auto-apply):
 - Run migration SQL from `specs/NNN-feature-name/data-model.md` in Supabase Dashboard > SQL Editor before deploying features that add tables.
 - Feature 007 requires: `profiles` table, `follows` table, updated `restaurants` RLS policy (see `specs/007-social-follow/data-model.md`).
+- Feature 011 requires: `recommendations` table, `get_mutual_followers()` function, `get_unread_recommendation_count()` function (see `specs/011-restaurant-sharing/data-model.md`).
 
 ### Local Development
 ```bash
