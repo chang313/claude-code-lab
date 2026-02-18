@@ -64,6 +64,9 @@ export function useSendRecommendation() {
       restaurant_name: restaurant.name,
       restaurant_category: restaurant.category,
       restaurant_address: restaurant.address,
+      restaurant_lat: restaurant.lat,
+      restaurant_lng: restaurant.lng,
+      restaurant_place_url: restaurant.placeUrl ?? null,
     });
 
     if (error) {
@@ -153,9 +156,9 @@ export function useAcceptRecommendation() {
       name: recommendation.restaurantName,
       address: recommendation.restaurantAddress,
       category: recommendation.restaurantCategory,
-      lat: 0,
-      lng: 0,
-      place_url: null,
+      lat: recommendation.restaurantLat,
+      lng: recommendation.restaurantLng,
+      place_url: recommendation.restaurantPlaceUrl,
       star_rating: 1,
     });
 

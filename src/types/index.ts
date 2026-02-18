@@ -106,6 +106,9 @@ export interface Recommendation {
   restaurantName: string;
   restaurantCategory: string;
   restaurantAddress: string;
+  restaurantLat: number;
+  restaurantLng: number;
+  restaurantPlaceUrl: string | null;
   status: "pending" | "accepted" | "ignored";
   isRead: boolean;
   createdAt: string;
@@ -124,6 +127,9 @@ export interface DbRecommendation {
   restaurant_name: string;
   restaurant_category: string;
   restaurant_address: string;
+  restaurant_lat: number;
+  restaurant_lng: number;
+  restaurant_place_url: string | null;
   status: string;
   is_read: boolean;
   created_at: string;
@@ -139,6 +145,9 @@ export function mapDbRecommendation(row: DbRecommendation): Recommendation {
     restaurantName: row.restaurant_name,
     restaurantCategory: row.restaurant_category,
     restaurantAddress: row.restaurant_address,
+    restaurantLat: row.restaurant_lat,
+    restaurantLng: row.restaurant_lng,
+    restaurantPlaceUrl: row.restaurant_place_url,
     status: row.status as Recommendation["status"],
     isRead: row.is_read,
     createdAt: row.created_at,

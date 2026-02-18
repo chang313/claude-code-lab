@@ -17,6 +17,9 @@ A directed restaurant recommendation from one user to another.
 | `restaurant_name` | `text` | NOT NULL | Snapshot: restaurant name at send time |
 | `restaurant_category` | `text` | NOT NULL | Snapshot: category at send time |
 | `restaurant_address` | `text` | NOT NULL | Snapshot: address at send time |
+| `restaurant_lat` | `double precision` | NOT NULL, DEFAULT `0` | Snapshot: latitude at send time |
+| `restaurant_lng` | `double precision` | NOT NULL, DEFAULT `0` | Snapshot: longitude at send time |
+| `restaurant_place_url` | `text` | NULLABLE | Snapshot: Kakao place URL at send time |
 | `status` | `text` | NOT NULL, DEFAULT `'pending'`, CHECK IN (`'pending'`, `'accepted'`, `'ignored'`) | Recommendation lifecycle state |
 | `is_read` | `boolean` | NOT NULL, DEFAULT `false` | Whether recipient has viewed this recommendation |
 | `created_at` | `timestamptz` | NOT NULL, DEFAULT `now()` | When the recommendation was sent |
@@ -102,6 +105,9 @@ export interface Recommendation {
   restaurantName: string;
   restaurantCategory: string;
   restaurantAddress: string;
+  restaurantLat: number;
+  restaurantLng: number;
+  restaurantPlaceUrl: string | null;
   status: 'pending' | 'accepted' | 'ignored';
   isRead: boolean;
   createdAt: string;       // ISO 8601
@@ -120,6 +126,9 @@ export interface DbRecommendation {
   restaurant_name: string;
   restaurant_category: string;
   restaurant_address: string;
+  restaurant_lat: number;
+  restaurant_lng: number;
+  restaurant_place_url: string | null;
   status: string;
   is_read: boolean;
   created_at: string;
@@ -140,6 +149,9 @@ CREATE TABLE recommendations (
   restaurant_name text NOT NULL,
   restaurant_category text NOT NULL,
   restaurant_address text NOT NULL,
+  restaurant_lat double precision NOT NULL DEFAULT 0,
+  restaurant_lng double precision NOT NULL DEFAULT 0,
+  restaurant_place_url text,
   status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'ignored')),
   is_read boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -209,4 +221,12 @@ AS $$
     AND status = 'pending'
     AND is_read = false;
 $$;
+
+-- 004_add_lat_lng_to_recommendations.sql
+-- Run this if the recommendations table already exists (from 001)
+
+ALTER TABLE recommendations
+  ADD COLUMN IF NOT EXISTS restaurant_lat double precision NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS restaurant_lng double precision NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS restaurant_place_url text;
 ```
