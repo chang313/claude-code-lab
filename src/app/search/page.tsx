@@ -57,7 +57,7 @@ export default function SearchPage() {
     setCurrentBounds(bounds);
   }, []);
 
-  // Initial search — uses smartSearch for semantic expansion + distance sorting
+  // Initial search — uses smartSearch for semantic expansion + relevance sorting
   const handleSearch = useCallback(async (query: string) => {
     setIsLoading(true);
     setHasSearched(true);
