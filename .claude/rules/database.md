@@ -2,7 +2,7 @@
 
 ## Migrations
 - Supabase has no auto-migration runner — apply all schema changes manually via Supabase Dashboard > SQL Editor before deploying.
-- Migration SQL lives in `specs/NNN-feature-name/data-model.md` under a "Migration SQL" section.
+- For new features, write migration SQL in the spec's `data-model.md` during planning, then apply via SQL Editor before deploying.
 
 ## Query Patterns
 - FK join disambiguation: when a table has two FKs to the same target, use `!constraint_name` notation: `profiles!follows_follower_id_fkey(*)`. Default pattern: `<table>_<column>_fkey`.
