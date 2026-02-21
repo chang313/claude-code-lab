@@ -255,21 +255,3 @@ export function useSentRecommendations() {
   });
   return { sentRecommendations: data ?? [], isLoading };
 }
-
-// === Check if restaurant is already wishlisted by current user ===
-
-export function useIsAlreadyWishlisted(kakaoPlaceId: string): boolean {
-  const { data } = useSupabaseQuery<boolean>(
-    `wishlisted:${kakaoPlaceId}`,
-    async () => {
-      const { count, error } = await getSupabase()
-        .from("restaurants")
-        .select("id", { count: "exact", head: true })
-        .eq("kakao_place_id", kakaoPlaceId);
-      if (error) throw error;
-      return (count ?? 0) > 0;
-    },
-    [kakaoPlaceId],
-  );
-  return data ?? false;
-}

@@ -5,8 +5,8 @@ import type { RecommendationWithSender } from "@/types";
 import {
   useAcceptRecommendation,
   useIgnoreRecommendation,
-  useIsAlreadyWishlisted,
 } from "@/db/recommendation-hooks";
+import { useIsWishlisted } from "@/db/hooks";
 
 interface RecommendationCardProps {
   recommendation: RecommendationWithSender;
@@ -17,9 +17,7 @@ export default function RecommendationCard({
 }: RecommendationCardProps) {
   const { acceptRecommendation } = useAcceptRecommendation();
   const { ignoreRecommendation } = useIgnoreRecommendation();
-  const isAlreadyWishlisted = useIsAlreadyWishlisted(
-    recommendation.kakaoPlaceId,
-  );
+  const isAlreadyWishlisted = useIsWishlisted(recommendation.kakaoPlaceId);
   const [acting, setActing] = useState(false);
 
   const handleAccept = async () => {

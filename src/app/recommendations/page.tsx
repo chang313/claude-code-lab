@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import RecommendationCard from "@/components/RecommendationCard";
 import {
   useReceivedRecommendations,
@@ -8,6 +9,7 @@ import {
 } from "@/db/recommendation-hooks";
 
 export default function RecommendationsPage() {
+  const router = useRouter();
   const { recommendations, isLoading } = useReceivedRecommendations();
   const { markAsRead } = useMarkRecommendationsRead();
 
@@ -19,6 +21,12 @@ export default function RecommendationsPage() {
 
   return (
     <div className="space-y-4 pb-20">
+      <button
+        onClick={() => router.back()}
+        className="text-sm text-blue-600 hover:text-blue-800"
+      >
+        ← 뒤로
+      </button>
       <h1 className="text-2xl font-bold">받은 추천</h1>
 
       {isLoading ? (
