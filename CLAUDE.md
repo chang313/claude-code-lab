@@ -56,6 +56,9 @@ cp .env.example .env.local  # fill in values
 pnpm install && pnpm dev
 ```
 
+## Workflow Rules
+- Always create a git worktree (via `/worktree-setup`) before starting work on a new feature. Never work directly on `main`.
+
 ## Custom Commands
 
 Git workflow commands in `.claude/commands/`:
