@@ -27,7 +27,9 @@ export function groupBySubcategory(
   }
 
   const sortRestaurants = (a: Restaurant, b: Restaurant): number => {
-    if (b.starRating !== a.starRating) return b.starRating - a.starRating;
+    const aRating = a.starRating ?? 0;
+    const bRating = b.starRating ?? 0;
+    if (bRating !== aRating) return bRating - aRating;
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   };
 

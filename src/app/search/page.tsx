@@ -7,11 +7,10 @@ import BottomSheet from "@/components/BottomSheet";
 import RestaurantCard from "@/components/RestaurantCard";
 import SearchThisAreaButton from "@/components/SearchThisAreaButton";
 import ErrorToast from "@/components/ErrorToast";
-import StarRating from "@/components/StarRating";
 import { smartSearch, viewportSearch, boundsEqual } from "@/lib/kakao";
 import { formatDistance } from "@/lib/format-distance";
 import { useAddRestaurant } from "@/db/hooks";
-import { useIsWishlistedSet } from "@/db/search-hooks";
+import { useRestaurantStatusMap } from "@/db/search-hooks";
 import type { Bounds, KakaoPlace } from "@/types";
 
 type SheetState = "hidden" | "peek" | "expanded";
@@ -23,7 +22,6 @@ export default function SearchPage() {
   const [selectedPlace, setSelectedPlace] = useState<KakaoPlace | null>(null);
   const [sheetState, setSheetState] = useState<SheetState>("hidden");
   const [center, setCenter] = useState<{ lat: number; lng: number } | undefined>();
-  const [selectedRating, setSelectedRating] = useState<1 | 2 | 3>(1);
 
   // Viewport search state
   const [currentQuery, setCurrentQuery] = useState<string | null>(null);
@@ -33,7 +31,7 @@ export default function SearchPage() {
   const [viewportError, setViewportError] = useState<string | null>(null);
 
   const { addRestaurant } = useAddRestaurant();
-  const wishlistedIds = useIsWishlistedSet(results.map((r) => r.id));
+  const statusMap = useRestaurantStatusMap(results.map((r) => r.id));
 
   // Derive button visibility
   const showSearchButton =
@@ -63,7 +61,7 @@ export default function SearchPage() {
     setHasSearched(true);
     setSelectedPlace(null);
     setCurrentQuery(query);
-    setLastSearchedBounds(null); // Reset so button doesn't show during auto-fit
+    setLastSearchedBounds(null);
     setViewportError(null);
     try {
       const places = await smartSearch({
@@ -84,14 +82,13 @@ export default function SearchPage() {
   }, [center]);
 
   // After initial search auto-fits, the map fires onBoundsChange.
-  // We capture this as lastSearchedBounds so the button stays hidden until user moves.
   useEffect(() => {
     if (currentQuery && !lastSearchedBounds && currentBounds && hasSearched && !isLoading) {
       setLastSearchedBounds(currentBounds);
     }
   }, [currentQuery, lastSearchedBounds, currentBounds, hasSearched, isLoading]);
 
-  // Viewport re-search — triggered by "Search this area" button
+  // Viewport re-search
   const handleViewportSearch = useCallback(async () => {
     if (!currentQuery || !currentBounds) return;
     setIsViewportLoading(true);
@@ -113,12 +110,6 @@ export default function SearchPage() {
     }
   }, [currentQuery, currentBounds, center]);
 
-  // Reset star rating when selected place changes
-  useEffect(() => {
-    setSelectedRating(1);
-  }, [selectedPlace]);
-
-  // Marker click handler — collapse expanded sheet to peek
   const handleMarkerClick = useCallback(
     (id: string) => {
       const place = results.find((p) => p.id === id);
@@ -128,13 +119,19 @@ export default function SearchPage() {
     [results, sheetState],
   );
 
-  // Wishlist action
-  const handleAdd = async (place: KakaoPlace) => {
-    await addRestaurant(place, selectedRating);
+  // Add to wishlist (default, star_rating = null)
+  const handleAddToWishlist = async (place: KakaoPlace) => {
+    await addRestaurant(place);
     setSelectedPlace(null);
   };
 
-  // Map markers derived from results
+  // Add as visited (star_rating = rating)
+  const handleAddAsVisited = async (place: KakaoPlace, rating: 1 | 2 | 3) => {
+    await addRestaurant(place, rating);
+    setSelectedPlace(null);
+  };
+
+  // Map markers
   const markers = useMemo(
     () =>
       results
@@ -144,25 +141,43 @@ export default function SearchPage() {
           lat: parseFloat(p.y),
           lng: parseFloat(p.x),
           name: p.place_name,
-          isWishlisted: wishlistedIds.has(p.id),
+          isWishlisted: statusMap.has(p.id),
         })),
-    [results, wishlistedIds],
+    [results, statusMap],
   );
 
-  // Auto-fit bounds from results (only for initial search, not viewport re-search)
   const fitBounds = useMemo(() => {
     if (!hasSearched || markers.length === 0 || lastSearchedBounds !== null) return undefined;
     return markers.map((m) => ({ lat: m.lat, lng: m.lng }));
   }, [hasSearched, markers, lastSearchedBounds]);
 
+  const renderCard = (place: KakaoPlace) => {
+    const status = statusMap.get(place.id) ?? null;
+    return (
+      <RestaurantCard
+        key={place.id}
+        restaurant={{
+          id: place.id,
+          name: place.place_name,
+          address: place.road_address_name || place.address_name,
+          category: place.category_name,
+          starRating: null,
+        }}
+        variant="search-result"
+        distance={formatDistance(place.distance)}
+        savedStatus={status}
+        onAddToWishlist={() => handleAddToWishlist(place)}
+        onAddAsVisited={(rating) => handleAddAsVisited(place, rating)}
+      />
+    );
+  };
+
   return (
     <div className="relative h-[calc(100vh-4rem)]">
-      {/* Search bar floating over map */}
       <div className="absolute top-0 left-0 right-0 z-20 p-4">
         <SearchBar onSearch={handleSearch} isLoading={isLoading} />
       </div>
 
-      {/* "Search this area" button */}
       <div className="absolute top-16 left-0 right-0 z-20 flex justify-center">
         <SearchThisAreaButton
           visible={showSearchButton}
@@ -171,7 +186,6 @@ export default function SearchPage() {
         />
       </div>
 
-      {/* Full-screen map */}
       <MapView
         center={center}
         markers={markers}
@@ -181,7 +195,6 @@ export default function SearchPage() {
         className="w-full h-full"
       />
 
-      {/* Error toast */}
       {viewportError && (
         <ErrorToast
           message={viewportError}
@@ -189,36 +202,12 @@ export default function SearchPage() {
         />
       )}
 
-      {/* Selected place detail card */}
       {selectedPlace && (
         <div className="absolute bottom-20 left-4 right-4 z-30">
-          <RestaurantCard
-            restaurant={{
-              id: selectedPlace.id,
-              name: selectedPlace.place_name,
-              address: selectedPlace.road_address_name || selectedPlace.address_name,
-              category: selectedPlace.category_name,
-              starRating: selectedRating,
-            }}
-            variant="search-result"
-            distance={formatDistance(selectedPlace.distance)}
-            isWishlisted={wishlistedIds.has(selectedPlace.id)}
-            onAddToWishlist={() => handleAdd(selectedPlace)}
-          />
-          {!wishlistedIds.has(selectedPlace.id) && (
-            <div className="mt-2 flex items-center justify-center gap-2 bg-white rounded-xl p-2 shadow-md">
-              <span className="text-sm text-gray-500">별점</span>
-              <StarRating
-                value={selectedRating}
-                onChange={setSelectedRating}
-                size="md"
-              />
-            </div>
-          )}
+          {renderCard(selectedPlace)}
         </div>
       )}
 
-      {/* Bottom sheet with result list */}
       {hasSearched && (
         <BottomSheet state={sheetState} onStateChange={setSheetState}>
           {isLoading || isViewportLoading ? (
@@ -235,22 +224,7 @@ export default function SearchPage() {
           ) : (
             <div className="space-y-3">
               <p className="text-sm text-gray-500">{results.length}개 결과</p>
-              {results.map((place) => (
-                <RestaurantCard
-                  key={place.id}
-                  restaurant={{
-                    id: place.id,
-                    name: place.place_name,
-                    address: place.road_address_name || place.address_name,
-                    category: place.category_name,
-                    starRating: 1,
-                  }}
-                  variant="search-result"
-                  distance={formatDistance(place.distance)}
-                  isWishlisted={wishlistedIds.has(place.id)}
-                  onAddToWishlist={() => handleAdd(place)}
-                />
-              ))}
+              {results.map((place) => renderCard(place))}
             </div>
           )}
         </BottomSheet>

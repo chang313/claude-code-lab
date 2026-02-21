@@ -6,20 +6,33 @@ import RestaurantCard from "@/components/RestaurantCard";
 import CategoryAccordion from "@/components/CategoryAccordion";
 import RecommendModal from "@/components/RecommendModal";
 import {
+  useVisitedGrouped,
   useWishlistGrouped,
   useRemoveRestaurant,
   useUpdateStarRating,
+  useMarkAsVisited,
+  useMoveToWishlist,
 } from "@/db/hooks";
 import type { Restaurant } from "@/types";
 
 export default function WishlistPage() {
-  const { groups, isLoading } = useWishlistGrouped();
+  const { groups: visitedGroups, isLoading: visitedLoading } =
+    useVisitedGrouped();
+  const { groups: wishlistGroups, isLoading: wishlistLoading } =
+    useWishlistGrouped();
   const { removeRestaurant } = useRemoveRestaurant();
   const { updateStarRating } = useUpdateStarRating();
+  const { markAsVisited } = useMarkAsVisited();
+  const { moveToWishlist } = useMoveToWishlist();
   const router = useRouter();
   const [recommendTarget, setRecommendTarget] = useState<Restaurant | null>(
     null,
   );
+
+  const isLoading = visitedLoading || wishlistLoading;
+  const visitedCount = visitedGroups.reduce((sum, g) => sum + g.count, 0);
+  const wishlistCount = wishlistGroups.reduce((sum, g) => sum + g.count, 0);
+  const bothEmpty = visitedCount === 0 && wishlistCount === 0;
 
   if (isLoading) {
     return (
@@ -31,10 +44,10 @@ export default function WishlistPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <h1 className="text-2xl font-bold">나의 맛집</h1>
 
-      {groups.length === 0 ? (
+      {bothEmpty ? (
         <div className="text-center py-12 text-gray-500">
           <p className="text-lg">아직 저장된 맛집이 없습니다</p>
           <p className="text-sm mt-1">
@@ -42,30 +55,85 @@ export default function WishlistPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {groups.map((group) => (
-            <CategoryAccordion
-              key={group.subcategory}
-              subcategory={group.subcategory}
-              count={group.count}
-            >
-              {group.restaurants.map((restaurant) => (
-                <RestaurantCard
-                  key={restaurant.id}
-                  restaurant={restaurant}
-                  variant="wishlist"
-                  onStarChange={(rating) =>
-                    updateStarRating(restaurant.id, rating)
-                  }
-                  onRemove={() => removeRestaurant(restaurant.id)}
-                  onClick={() => router.push(`/restaurant/${restaurant.id}`)}
-                  onRecommend={() => setRecommendTarget(restaurant)}
-                />
-              ))}
-            </CategoryAccordion>
-          ))}
-        </div>
+        <>
+          {/* Visited Section (맛집 리스트) */}
+          <section>
+            <h2 className="text-lg font-bold text-gray-800 mb-3">
+              맛집 리스트 ({visitedCount})
+            </h2>
+            {visitedCount === 0 ? (
+              <p className="text-sm text-gray-400 py-4">
+                아직 방문한 맛집이 없습니다. 위시 리스트에서 별점을 눌러 방문 기록을 남겨보세요.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {visitedGroups.map((group) => (
+                  <CategoryAccordion
+                    key={group.subcategory}
+                    subcategory={group.subcategory}
+                    count={group.count}
+                  >
+                    {group.restaurants.map((restaurant) => (
+                      <RestaurantCard
+                        key={restaurant.id}
+                        restaurant={restaurant}
+                        variant="visited"
+                        onStarChange={(rating) =>
+                          updateStarRating(restaurant.id, rating)
+                        }
+                        onRemove={() => removeRestaurant(restaurant.id)}
+                        onClick={() =>
+                          router.push(`/restaurant/${restaurant.id}`)
+                        }
+                        onRecommend={() => setRecommendTarget(restaurant)}
+                        onMoveToWishlist={() => moveToWishlist(restaurant.id)}
+                      />
+                    ))}
+                  </CategoryAccordion>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Wishlist Section (위시 리스트) */}
+          <section>
+            <h2 className="text-lg font-bold text-gray-800 mb-3">
+              위시 리스트 ({wishlistCount})
+            </h2>
+            {wishlistCount === 0 ? (
+              <p className="text-sm text-gray-400 py-4">
+                위시 리스트가 비어있습니다. 검색에서 맛집을 추가해 보세요.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {wishlistGroups.map((group) => (
+                  <CategoryAccordion
+                    key={group.subcategory}
+                    subcategory={group.subcategory}
+                    count={group.count}
+                  >
+                    {group.restaurants.map((restaurant) => (
+                      <RestaurantCard
+                        key={restaurant.id}
+                        restaurant={restaurant}
+                        variant="wishlist"
+                        onStarChange={(rating) =>
+                          markAsVisited(restaurant.id, rating)
+                        }
+                        onRemove={() => removeRestaurant(restaurant.id)}
+                        onClick={() =>
+                          router.push(`/restaurant/${restaurant.id}`)
+                        }
+                      />
+                    ))}
+                  </CategoryAccordion>
+                ))}
+              </div>
+            )}
+          </section>
+        </>
       )}
+
       {recommendTarget && (
         <RecommendModal
           restaurant={recommendTarget}

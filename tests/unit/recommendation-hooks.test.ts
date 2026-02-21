@@ -32,14 +32,14 @@ const mockAuth = {
 
 const mockFrom = vi.fn((table: string) => {
   const insertChain = createChainMock(mockInsertResult);
-  const originalInsert = insertChain.insert;
+  const originalInsert = insertChain.insert as Function;
   insertChain.insert = vi.fn((data: unknown) => {
     insertCalls.push({ table, data });
     return originalInsert(data);
   });
 
   const updateChain = createChainMock(mockUpdateResult);
-  const originalUpdate = updateChain.update;
+  const originalUpdate = updateChain.update as Function;
   updateChain.update = vi.fn((data: unknown) => {
     updateCalls.push({ table, data });
     return originalUpdate(data);
@@ -225,7 +225,7 @@ describe("useAcceptRecommendation", () => {
         lat: 37.5065,
         lng: 127.0536,
         place_url: "https://place.map.kakao.com/kakao-123",
-        star_rating: 1,
+        star_rating: null,
       }),
     );
 
@@ -247,7 +247,7 @@ describe("useAcceptRecommendation", () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === "restaurants") {
         const chain = createChainMock({ error: { code: "23505", message: "duplicate" } });
-        const origInsert = chain.insert;
+        const origInsert = chain.insert as Function;
         chain.insert = vi.fn((data: unknown) => {
           insertCalls.push({ table, data });
           return origInsert(data);
@@ -256,12 +256,12 @@ describe("useAcceptRecommendation", () => {
       }
       // For recommendations table, return normal mock
       const chain = createChainMock({ error: null });
-      const origUpdate = chain.update;
+      const origUpdate = chain.update as Function;
       chain.update = vi.fn((data: unknown) => {
         updateCalls.push({ table, data });
         return origUpdate(data);
       });
-      const origInsert = chain.insert;
+      const origInsert = chain.insert as Function;
       chain.insert = vi.fn((data: unknown) => {
         insertCalls.push({ table, data });
         return origInsert(data);

@@ -6,8 +6,12 @@ export interface Restaurant {
   lat: number;
   lng: number;
   placeUrl?: string;
-  starRating: number;
+  starRating: number | null;
   createdAt: string;
+}
+
+export function isVisited(restaurant: Restaurant): boolean {
+  return restaurant.starRating !== null;
 }
 
 export interface KakaoPlace {

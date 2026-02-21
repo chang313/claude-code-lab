@@ -21,7 +21,7 @@ interface DbRestaurant {
   lat: number;
   lng: number;
   place_url: string | null;
-  star_rating: number;
+  star_rating: number | null;
   created_at: string;
 }
 
@@ -57,6 +57,24 @@ export function useWishlist() {
   return { restaurants: data ?? [], isLoading };
 }
 
+export function useVisitedGrouped() {
+  const { data, isLoading } = useSupabaseQuery<SubcategoryGroup[]>(
+    RESTAURANTS_KEY,
+    async () => {
+      const { data, error } = await getSupabase()
+        .from("restaurants")
+        .select("*")
+        .not("star_rating", "is", null)
+        .order("star_rating", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const restaurants = (data as DbRestaurant[]).map(mapDbRestaurant);
+      return groupBySubcategory(restaurants);
+    },
+  );
+  return { groups: data ?? [], isLoading };
+}
+
 export function useWishlistGrouped() {
   const { data, isLoading } = useSupabaseQuery<SubcategoryGroup[]>(
     RESTAURANTS_KEY,
@@ -64,7 +82,7 @@ export function useWishlistGrouped() {
       const { data, error } = await getSupabase()
         .from("restaurants")
         .select("*")
-        .order("star_rating", { ascending: false })
+        .is("star_rating", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       const restaurants = (data as DbRestaurant[]).map(mapDbRestaurant);
@@ -94,7 +112,7 @@ export function useRestaurant(kakaoPlaceId: string) {
 export function useAddRestaurant() {
   const addRestaurant = async (
     place: KakaoPlace,
-    starRating: number = 1,
+    starRating: number | null = null,
   ): Promise<boolean> => {
     const supabase = getSupabase();
     const {
@@ -153,6 +171,37 @@ export function useUpdateStarRating() {
     invalidate(`${RESTAURANTS_KEY}:${kakaoPlaceId}`);
   };
   return { updateStarRating };
+}
+
+export function useMarkAsVisited() {
+  const markAsVisited = async (
+    kakaoPlaceId: string,
+    rating: 1 | 2 | 3,
+  ): Promise<void> => {
+    const supabase = getSupabase();
+    const { error } = await supabase
+      .from("restaurants")
+      .update({ star_rating: rating })
+      .eq("kakao_place_id", kakaoPlaceId);
+    if (error) throw error;
+    invalidate(RESTAURANTS_KEY);
+    invalidate(`wishlisted:${kakaoPlaceId}`);
+  };
+  return { markAsVisited };
+}
+
+export function useMoveToWishlist() {
+  const moveToWishlist = async (kakaoPlaceId: string): Promise<void> => {
+    const supabase = getSupabase();
+    const { error } = await supabase
+      .from("restaurants")
+      .update({ star_rating: null })
+      .eq("kakao_place_id", kakaoPlaceId);
+    if (error) throw error;
+    invalidate(RESTAURANTS_KEY);
+    invalidate(`wishlisted:${kakaoPlaceId}`);
+  };
+  return { moveToWishlist };
 }
 
 export function useIsWishlisted(kakaoPlaceId: string): boolean {
