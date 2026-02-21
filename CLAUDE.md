@@ -18,6 +18,8 @@ Project rules are in `.claude/rules/`:
 - `workflow.md` — worktree-first development policy
 - `deployment.md` — Vercel, env vars, OAuth setup, DB migrations
 - `commands.md` — git workflow custom command reference
+- `database.md` — Supabase/PostgREST query and schema patterns
+- `kakao.md` — Kakao Maps SDK and OAuth integration
 
 ## Active Technologies
 - TypeScript 5.x (strict mode) + Next.js 16 (App Router), React 19, Tailwind CSS 4, Kakao Maps SDK, Kakao Local REST API, Supabase (Auth + Postgres), @supabase/ssr
