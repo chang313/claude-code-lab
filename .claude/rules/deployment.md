@@ -15,10 +15,7 @@ Deployed on Vercel. Package manager: pnpm.
 3. Missing env vars = `MIDDLEWARE_INVOCATION_FAILED`; missing callback URL = login hangs after redirect
 
 **Database Migrations** (manual — Supabase does not auto-apply):
-- Run migration SQL from `specs/NNN-feature-name/data-model.md` in Supabase Dashboard > SQL Editor before deploying features that add tables.
-- Feature 007 requires: `profiles` table, `follows` table, updated `restaurants` RLS policy (see `specs/007-social-follow/data-model.md`).
-- Feature 011 requires: `recommendations` table, `get_mutual_followers()` function, `get_unread_recommendation_count()` function (see `specs/011-restaurant-sharing/data-model.md`).
-- Feature 014 requires: `restaurants.star_rating` column altered to nullable with CHECK constraint (see `specs/014-visited-wishlist/data-model.md`).
+- Before deploying a feature that adds tables or functions, run the migration SQL from `specs/NNN-feature-name/data-model.md` in Supabase Dashboard > SQL Editor.
 
 ## Local Development
 ```bash
