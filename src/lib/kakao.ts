@@ -79,10 +79,7 @@ async function paginatedSearch(params: {
   return all;
 }
 
-function deduplicateAndSort(
-  places: KakaoPlace[],
-  hasLocation: boolean,
-): KakaoPlace[] {
+function deduplicateAndSort(places: KakaoPlace[]): KakaoPlace[] {
   const seen = new Set<string>();
   const merged: KakaoPlace[] = [];
 
@@ -90,14 +87,6 @@ function deduplicateAndSort(
     if (seen.has(doc.id)) continue;
     seen.add(doc.id);
     merged.push(doc);
-  }
-
-  if (hasLocation) {
-    merged.sort((a, b) => {
-      const da = parseInt(a.distance ?? "0", 10);
-      const db = parseInt(b.distance ?? "0", 10);
-      return da - db;
-    });
   }
 
   return merged.slice(0, MAX_RESULTS);
@@ -120,7 +109,7 @@ export async function smartSearch(params: {
           x: params.x,
           y: params.y,
           radius: params.radius ?? DEFAULT_RADIUS,
-          sort: "distance" as const,
+          sort: "accuracy" as const,
         }),
       }),
     ),
@@ -132,7 +121,7 @@ export async function smartSearch(params: {
     all.push(...result.value);
   }
 
-  return deduplicateAndSort(all, hasLocation);
+  return deduplicateAndSort(all);
 }
 
 export async function viewportSearch(params: {
@@ -152,7 +141,7 @@ export async function viewportSearch(params: {
         ...(hasLocation && {
           x: String(params.userLocation!.lng),
           y: String(params.userLocation!.lat),
-          sort: "distance" as const,
+          sort: "accuracy" as const,
         }),
       }),
     ),
@@ -164,5 +153,5 @@ export async function viewportSearch(params: {
     all.push(...result.value);
   }
 
-  return deduplicateAndSort(all, hasLocation);
+  return deduplicateAndSort(all);
 }

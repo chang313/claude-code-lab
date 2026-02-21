@@ -7,6 +7,7 @@ import BottomSheet from "@/components/BottomSheet";
 import RestaurantCard from "@/components/RestaurantCard";
 import SearchThisAreaButton from "@/components/SearchThisAreaButton";
 import ErrorToast from "@/components/ErrorToast";
+import StarRating from "@/components/StarRating";
 import { smartSearch, viewportSearch, boundsEqual } from "@/lib/kakao";
 import { formatDistance } from "@/lib/format-distance";
 import { useAddRestaurant } from "@/db/hooks";
@@ -22,6 +23,7 @@ export default function SearchPage() {
   const [selectedPlace, setSelectedPlace] = useState<KakaoPlace | null>(null);
   const [sheetState, setSheetState] = useState<SheetState>("hidden");
   const [center, setCenter] = useState<{ lat: number; lng: number } | undefined>();
+  const [selectedRating, setSelectedRating] = useState<1 | 2 | 3>(1);
 
   // Viewport search state
   const [currentQuery, setCurrentQuery] = useState<string | null>(null);
@@ -111,18 +113,24 @@ export default function SearchPage() {
     }
   }, [currentQuery, currentBounds, center]);
 
-  // Marker click handler
+  // Reset star rating when selected place changes
+  useEffect(() => {
+    setSelectedRating(1);
+  }, [selectedPlace]);
+
+  // Marker click handler — collapse expanded sheet to peek
   const handleMarkerClick = useCallback(
     (id: string) => {
       const place = results.find((p) => p.id === id);
       setSelectedPlace(place ?? null);
+      if (sheetState === "expanded") setSheetState("peek");
     },
-    [results],
+    [results, sheetState],
   );
 
   // Wishlist action
   const handleAdd = async (place: KakaoPlace) => {
-    await addRestaurant(place);
+    await addRestaurant(place, selectedRating);
     setSelectedPlace(null);
   };
 
@@ -190,13 +198,23 @@ export default function SearchPage() {
               name: selectedPlace.place_name,
               address: selectedPlace.road_address_name || selectedPlace.address_name,
               category: selectedPlace.category_name,
-              starRating: 1,
+              starRating: selectedRating,
             }}
             variant="search-result"
             distance={formatDistance(selectedPlace.distance)}
             isWishlisted={wishlistedIds.has(selectedPlace.id)}
             onAddToWishlist={() => handleAdd(selectedPlace)}
           />
+          {!wishlistedIds.has(selectedPlace.id) && (
+            <div className="mt-2 flex items-center justify-center gap-2 bg-white rounded-xl p-2 shadow-md">
+              <span className="text-sm text-gray-500">별점</span>
+              <StarRating
+                value={selectedRating}
+                onChange={setSelectedRating}
+                size="md"
+              />
+            </div>
+          )}
         </div>
       )}
 
