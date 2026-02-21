@@ -153,9 +153,9 @@ describe("smartSearch", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("should sort by distance when coordinates are provided", async () => {
-    const near = { ...mockResponse.documents[0], id: "1", distance: "100" };
+  it("should preserve relevance order when coordinates are provided", async () => {
     const far = { ...mockResponse.documents[0], id: "2", distance: "5000" };
+    const near = { ...mockResponse.documents[0], id: "1", distance: "100" };
 
     vi.stubGlobal(
       "fetch",
@@ -172,8 +172,9 @@ describe("smartSearch", () => {
       y: "37.5",
     });
 
-    expect(results[0].id).toBe("1");
-    expect(results[1].id).toBe("2");
+    // Preserves API insertion order (relevance), not distance order
+    expect(results[0].id).toBe("2");
+    expect(results[1].id).toBe("1");
   });
 
   it("should pass location params to searchByKeyword when provided", async () => {
@@ -184,7 +185,7 @@ describe("smartSearch", () => {
     expect(url.searchParams.get("x")).toBe("127.0");
     expect(url.searchParams.get("y")).toBe("37.5");
     expect(url.searchParams.get("radius")).toBe("5000");
-    expect(url.searchParams.get("sort")).toBe("distance");
+    expect(url.searchParams.get("sort")).toBe("accuracy");
   });
 
   it("should not include location params when coordinates are absent", async () => {
