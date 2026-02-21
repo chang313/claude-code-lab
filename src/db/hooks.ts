@@ -7,6 +7,14 @@ import { groupBySubcategory } from "@/lib/subcategory";
 import type { KakaoPlace, Restaurant, SubcategoryGroup } from "@/types";
 
 const RESTAURANTS_KEY = "restaurants";
+const VISITED_KEY = "restaurants:visited";
+const WISHLIST_KEY = "restaurants:wishlist";
+
+function invalidateRestaurants() {
+  invalidate(RESTAURANTS_KEY);
+  invalidate(VISITED_KEY);
+  invalidate(WISHLIST_KEY);
+}
 
 function getSupabase() {
   return createClient();
@@ -59,7 +67,7 @@ export function useWishlist() {
 
 export function useVisitedGrouped() {
   const { data, isLoading } = useSupabaseQuery<SubcategoryGroup[]>(
-    RESTAURANTS_KEY,
+    VISITED_KEY,
     async () => {
       const { data, error } = await getSupabase()
         .from("restaurants")
@@ -77,7 +85,7 @@ export function useVisitedGrouped() {
 
 export function useWishlistGrouped() {
   const { data, isLoading } = useSupabaseQuery<SubcategoryGroup[]>(
-    RESTAURANTS_KEY,
+    WISHLIST_KEY,
     async () => {
       const { data, error } = await getSupabase()
         .from("restaurants")
@@ -137,7 +145,7 @@ export function useAddRestaurant() {
       throw error;
     }
 
-    invalidate(RESTAURANTS_KEY);
+    invalidateRestaurants();
     return true;
   };
   return { addRestaurant };
@@ -151,7 +159,7 @@ export function useRemoveRestaurant() {
       .delete()
       .eq("kakao_place_id", kakaoPlaceId);
     if (error) throw error;
-    invalidate(RESTAURANTS_KEY);
+    invalidateRestaurants();
   };
   return { removeRestaurant };
 }
@@ -167,7 +175,7 @@ export function useUpdateStarRating() {
       .update({ star_rating: rating })
       .eq("kakao_place_id", kakaoPlaceId);
     if (error) throw error;
-    invalidate(RESTAURANTS_KEY);
+    invalidateRestaurants();
     invalidate(`${RESTAURANTS_KEY}:${kakaoPlaceId}`);
   };
   return { updateStarRating };
@@ -184,7 +192,7 @@ export function useMarkAsVisited() {
       .update({ star_rating: rating })
       .eq("kakao_place_id", kakaoPlaceId);
     if (error) throw error;
-    invalidate(RESTAURANTS_KEY);
+    invalidateRestaurants();
     invalidate(`wishlisted:${kakaoPlaceId}`);
   };
   return { markAsVisited };
@@ -198,7 +206,7 @@ export function useMoveToWishlist() {
       .update({ star_rating: null })
       .eq("kakao_place_id", kakaoPlaceId);
     if (error) throw error;
-    invalidate(RESTAURANTS_KEY);
+    invalidateRestaurants();
     invalidate(`wishlisted:${kakaoPlaceId}`);
   };
   return { moveToWishlist };

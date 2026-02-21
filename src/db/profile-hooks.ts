@@ -170,7 +170,7 @@ export function useUserRestaurants(userId: string) {
 
 export function useUserVisitedGrouped(userId: string) {
   const { data, isLoading } = useSupabaseQuery<SubcategoryGroup[]>(
-    `restaurants:${userId}`,
+    `restaurants:visited:${userId}`,
     async () => {
       const { data, error } = await getSupabase()
         .from("restaurants")
@@ -190,7 +190,7 @@ export function useUserVisitedGrouped(userId: string) {
 
 export function useUserWishlistGrouped(userId: string) {
   const { data, isLoading } = useSupabaseQuery<SubcategoryGroup[]>(
-    `restaurants:${userId}`,
+    `restaurants:wishlist:${userId}`,
     async () => {
       const { data, error } = await getSupabase()
         .from("restaurants")
