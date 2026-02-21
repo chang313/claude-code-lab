@@ -11,4 +11,5 @@
 - 009-fix-my-tab-redirect: Fixed MY tab — `/my` route now renders own profile inline instead of redirecting to `/users/{id}`. MY tab stays highlighted.
 - 010-rename-my-tab: Renamed bottom nav "MY" tab to "내정보" for consistent Korean navigation (맛집, 검색, 사람, 내정보).
 - 011-restaurant-sharing: Added mutual-follower restaurant recommendation system. Users can recommend restaurants from their own wishlist to mutual followers. New `recommendations` table with RLS, two Postgres functions (`get_mutual_followers`, `get_unread_recommendation_count`). New UI: TopBar with bell-icon badge, RecommendModal, RecommendationCard, `/recommendations` inbox page.
+- 013-search-add-sort: Changed search sort from distance-first to relevance-first (`sort=accuracy`). Added star rating selector when adding restaurants from map. Bottom sheet auto-collapses on marker click.
 - 014-visited-wishlist: Split restaurant list into "맛집 리스트" (visited, star rating 1-3) and "위시 리스트" (wishlist, no rating). Nullable `star_rating` as discriminator (NULL = wishlist). Two-section layout on main/profile pages, dual add buttons on search (+ for wishlist, ★ for visited), ♡/★ saved indicators.
