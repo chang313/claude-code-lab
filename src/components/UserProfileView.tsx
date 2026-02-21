@@ -1,6 +1,6 @@
 "use client";
 
-import { useProfileWithCounts, useUserWishlistGrouped } from "@/db/profile-hooks";
+import { useProfileWithCounts, useUserVisitedGrouped, useUserWishlistGrouped } from "@/db/profile-hooks";
 import ProfileHeader from "@/components/ProfileHeader";
 import CategoryAccordion from "@/components/CategoryAccordion";
 import RestaurantCard from "@/components/RestaurantCard";
@@ -17,8 +17,15 @@ export default function UserProfileView({
 }: UserProfileViewProps) {
   const { profile, isLoading: profileLoading } =
     useProfileWithCounts(userId);
-  const { groups, isLoading: wishlistLoading } =
+  const { groups: visitedGroups, isLoading: visitedLoading } =
+    useUserVisitedGrouped(userId);
+  const { groups: wishlistGroups, isLoading: wishlistLoading } =
     useUserWishlistGrouped(userId);
+
+  const listsLoading = visitedLoading || wishlistLoading;
+  const visitedCount = visitedGroups.reduce((sum, g) => sum + g.count, 0);
+  const wishlistCount = wishlistGroups.reduce((sum, g) => sum + g.count, 0);
+  const bothEmpty = visitedCount === 0 && wishlistCount === 0;
 
   if (profileLoading) {
     return (
@@ -63,34 +70,79 @@ export default function UserProfileView({
         profile={profile}
         isOwnProfile={isOwnProfile}
       >
-        {wishlistLoading ? (
+        {listsLoading ? (
           <div className="space-y-3 animate-pulse">
             {[1, 2].map((i) => (
               <div key={i} className="h-16 bg-gray-100 rounded-lg" />
             ))}
           </div>
-        ) : groups.length === 0 ? (
+        ) : bothEmpty ? (
           <p className="text-center text-gray-400 py-8">
             아직 저장된 맛집이 없습니다
           </p>
         ) : (
-          <div className="space-y-4">
-            {groups.map((group) => (
-              <CategoryAccordion
-                key={group.subcategory}
-                subcategory={group.subcategory}
-                count={group.count}
-                defaultExpanded={groups.length <= 3}
-              >
-                {group.restaurants.map((restaurant) => (
-                  <RestaurantCard
-                    key={restaurant.id}
-                    restaurant={restaurant}
-                    variant="wishlist"
-                  />
-                ))}
-              </CategoryAccordion>
-            ))}
+          <div className="space-y-6">
+            {/* Visited Section */}
+            <section>
+              <h3 className="text-base font-bold text-gray-800 mb-2">
+                맛집 리스트 ({visitedCount})
+              </h3>
+              {visitedCount === 0 ? (
+                <p className="text-sm text-gray-400 py-2">
+                  아직 방문한 맛집이 없습니다
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {visitedGroups.map((group) => (
+                    <CategoryAccordion
+                      key={group.subcategory}
+                      subcategory={group.subcategory}
+                      count={group.count}
+                      defaultExpanded={visitedGroups.length <= 3}
+                    >
+                      {group.restaurants.map((restaurant) => (
+                        <RestaurantCard
+                          key={restaurant.id}
+                          restaurant={restaurant}
+                          variant="visited"
+                        />
+                      ))}
+                    </CategoryAccordion>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Wishlist Section */}
+            <section>
+              <h3 className="text-base font-bold text-gray-800 mb-2">
+                위시 리스트 ({wishlistCount})
+              </h3>
+              {wishlistCount === 0 ? (
+                <p className="text-sm text-gray-400 py-2">
+                  위시 리스트가 비어있습니다
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {wishlistGroups.map((group) => (
+                    <CategoryAccordion
+                      key={group.subcategory}
+                      subcategory={group.subcategory}
+                      count={group.count}
+                      defaultExpanded={wishlistGroups.length <= 3}
+                    >
+                      {group.restaurants.map((restaurant) => (
+                        <RestaurantCard
+                          key={restaurant.id}
+                          restaurant={restaurant}
+                          variant="wishlist"
+                        />
+                      ))}
+                    </CategoryAccordion>
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
         )}
       </FollowTabs>

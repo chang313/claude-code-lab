@@ -1,7 +1,7 @@
 "use client";
 
 interface StarRatingProps {
-  value: 1 | 2 | 3;
+  value: 1 | 2 | 3 | null;
   onChange?: (rating: 1 | 2 | 3) => void;
   readonly?: boolean;
   size?: "sm" | "md" | "lg";
@@ -30,7 +30,9 @@ export default function StarRating({
           className={`${sizeClasses[size]} ${
             readonly ? "cursor-default" : "cursor-pointer hover:scale-110"
           } transition-transform ${
-            star <= value ? "text-yellow-400" : "text-gray-300"
+            value !== null && star <= value
+              ? "text-yellow-400"
+              : "text-gray-300"
           }`}
           aria-label={`${star}점`}
         >

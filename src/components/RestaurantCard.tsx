@@ -8,16 +8,19 @@ interface RestaurantCardProps {
     name: string;
     address: string;
     category: string;
-    starRating: number;
+    starRating: number | null;
   };
-  variant: "search-result" | "wishlist";
+  variant: "search-result" | "wishlist" | "visited";
   distance?: string;
   isWishlisted?: boolean;
+  savedStatus?: "wishlist" | "visited" | null;
   onAddToWishlist?: () => void;
+  onAddAsVisited?: (rating: 1 | 2 | 3) => void;
   onRemove?: () => void;
   onStarChange?: (rating: 1 | 2 | 3) => void;
   onClick?: () => void;
   onRecommend?: () => void;
+  onMoveToWishlist?: () => void;
 }
 
 export default function RestaurantCard({
@@ -25,12 +28,17 @@ export default function RestaurantCard({
   variant,
   distance,
   isWishlisted,
+  savedStatus,
   onAddToWishlist,
+  onAddAsVisited,
   onRemove,
   onStarChange,
   onClick,
   onRecommend,
+  onMoveToWishlist,
 }: RestaurantCardProps) {
+  const isSaved = savedStatus != null || isWishlisted;
+
   return (
     <div
       className="bg-white rounded-xl p-4 shadow-sm border border-gray-100"
@@ -58,7 +66,8 @@ export default function RestaurantCard({
       </div>
 
       <div className="flex items-center justify-between mt-3">
-        {variant === "wishlist" && onStarChange && (
+        {/* Visited cards: filled editable stars */}
+        {variant === "visited" && onStarChange && (
           <StarRating
             value={restaurant.starRating as 1 | 2 | 3}
             onChange={onStarChange}
@@ -66,25 +75,51 @@ export default function RestaurantCard({
           />
         )}
 
+        {/* Wishlist cards: gray tappable stars (tap to promote) */}
+        {variant === "wishlist" && onStarChange && (
+          <StarRating
+            value={null}
+            onChange={onStarChange}
+            size="sm"
+          />
+        )}
+
+        {/* Search result: saved indicators or add buttons */}
         {variant === "search-result" && (
           <>
-            {isWishlisted ? (
-              <span className="text-sm text-green-600 font-medium">
-                ✓ 저장됨
+            {isSaved ? (
+              <span className="text-sm font-medium">
+                {savedStatus === "visited" ? (
+                  <span className="text-yellow-500">★ 저장됨</span>
+                ) : (
+                  <span className="text-pink-500">♡ 저장됨</span>
+                )}
               </span>
             ) : (
-              <button
-                onClick={onAddToWishlist}
-                className="px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors"
-                aria-label={`${restaurant.name} 맛집 추가`}
-              >
-                + 맛집 추가
-              </button>
+              <div className="flex items-center gap-2">
+                {onAddAsVisited && (
+                  <button
+                    onClick={() => onAddAsVisited(1)}
+                    className="px-3 py-1.5 bg-yellow-500 text-white text-sm font-medium rounded-lg hover:bg-yellow-600 active:bg-yellow-700 transition-colors"
+                    aria-label={`${restaurant.name} 방문 추가`}
+                  >
+                    ★
+                  </button>
+                )}
+                <button
+                  onClick={onAddToWishlist}
+                  className="px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors"
+                  aria-label={`${restaurant.name} 위시리스트 추가`}
+                >
+                  + 추가
+                </button>
+              </div>
             )}
           </>
         )}
 
-        {variant === "wishlist" && (
+        {/* Visited card actions */}
+        {variant === "visited" && (
           <div className="flex items-center gap-3">
             {onRecommend && (
               <button
@@ -95,6 +130,30 @@ export default function RestaurantCard({
                 추천
               </button>
             )}
+            {onMoveToWishlist && (
+              <button
+                onClick={onMoveToWishlist}
+                className="text-sm text-orange-500 hover:text-orange-700"
+                aria-label={`${restaurant.name} 위시리스트로`}
+              >
+                위시리스트로
+              </button>
+            )}
+            {onRemove && (
+              <button
+                onClick={onRemove}
+                className="text-sm text-red-500 hover:text-red-700"
+                aria-label={`${restaurant.name} 삭제`}
+              >
+                삭제
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Wishlist card actions */}
+        {variant === "wishlist" && (
+          <div className="flex items-center gap-3">
             {onRemove && (
               <button
                 onClick={onRemove}

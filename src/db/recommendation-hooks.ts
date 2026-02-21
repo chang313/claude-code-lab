@@ -159,7 +159,7 @@ export function useAcceptRecommendation() {
       lat: recommendation.restaurantLat,
       lng: recommendation.restaurantLng,
       place_url: recommendation.restaurantPlaceUrl,
-      star_rating: 1,
+      star_rating: null,
     });
 
     // Ignore duplicate (already wishlisted)

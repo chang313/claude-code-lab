@@ -27,7 +27,7 @@ interface DbRestaurant {
   lat: number;
   lng: number;
   place_url: string | null;
-  star_rating: number;
+  star_rating: number | null;
   created_at: string;
 }
 
@@ -168,15 +168,35 @@ export function useUserRestaurants(userId: string) {
   return { restaurants: data ?? [], isLoading };
 }
 
-export function useUserWishlistGrouped(userId: string) {
+export function useUserVisitedGrouped(userId: string) {
   const { data, isLoading } = useSupabaseQuery<SubcategoryGroup[]>(
-    `restaurants:${userId}`,
+    `restaurants:visited:${userId}`,
     async () => {
       const { data, error } = await getSupabase()
         .from("restaurants")
         .select("*")
         .eq("user_id", userId)
+        .not("star_rating", "is", null)
         .order("star_rating", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const restaurants = (data as DbRestaurant[]).map(mapDbRestaurant);
+      return groupBySubcategory(restaurants);
+    },
+    [userId],
+  );
+  return { groups: data ?? [], isLoading };
+}
+
+export function useUserWishlistGrouped(userId: string) {
+  const { data, isLoading } = useSupabaseQuery<SubcategoryGroup[]>(
+    `restaurants:wishlist:${userId}`,
+    async () => {
+      const { data, error } = await getSupabase()
+        .from("restaurants")
+        .select("*")
+        .eq("user_id", userId)
+        .is("star_rating", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       const restaurants = (data as DbRestaurant[]).map(mapDbRestaurant);

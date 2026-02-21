@@ -26,3 +26,27 @@ export function useIsWishlistedSet(ids: string[]): Set<string> {
   );
   return data ?? new Set();
 }
+
+export function useRestaurantStatusMap(
+  ids: string[],
+): Map<string, "wishlist" | "visited"> {
+  const stableKey = [...ids].sort().join(",");
+  const { data } = useSupabaseQuery<Map<string, "wishlist" | "visited">>(
+    `restaurant-status:${stableKey}`,
+    async () => {
+      if (ids.length === 0) return new Map();
+      const { data, error } = await getSupabase()
+        .from("restaurants")
+        .select("kakao_place_id, star_rating")
+        .in("kakao_place_id", ids);
+      if (error) throw error;
+      const map = new Map<string, "wishlist" | "visited">();
+      for (const row of data as { kakao_place_id: string; star_rating: number | null }[]) {
+        map.set(row.kakao_place_id, row.star_rating === null ? "wishlist" : "visited");
+      }
+      return map;
+    },
+    [stableKey],
+  );
+  return data ?? new Map();
+}
