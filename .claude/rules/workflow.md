@@ -1,6 +1,6 @@
 # Workflow Rules
 
-- Always create a git worktree (via `/worktree-setup`) before starting work on a new feature. Never work directly on `main`.
+- Always create a git worktree and a new branch before starting any task (features, bug fixes, chores, docs). Never work directly on `main`. Use `/worktree-setup` when a branch already exists, or create one manually with `git worktree add ../<branch-name> -b <branch-name> main`.
 - Create worktree branches from `main`: run `git checkout main` first. Creating from a feature branch causes "already checked out" errors.
 
 ## Verification
