@@ -7,10 +7,12 @@ import BottomSheet from "@/components/BottomSheet";
 import RestaurantCard from "@/components/RestaurantCard";
 import SearchThisAreaButton from "@/components/SearchThisAreaButton";
 import Toast from "@/components/Toast";
+import SavedMarkersToggle from "@/components/SavedMarkersToggle";
 import { smartSearch, viewportSearch, boundsEqual } from "@/lib/kakao";
 import { formatDistance } from "@/lib/format-distance";
-import { useAddRestaurant } from "@/db/hooks";
+import { useAddRestaurant, useSavedRestaurantsForMap } from "@/db/hooks";
 import { useRestaurantStatusMap } from "@/db/search-hooks";
+import { mergeMarkers } from "@/lib/merge-markers";
 import type { Bounds, KakaoPlace } from "@/types";
 
 type SheetState = "hidden" | "peek" | "expanded";
@@ -30,11 +32,13 @@ export default function SearchPage() {
   const [isViewportLoading, setIsViewportLoading] = useState(false);
   const [viewportError, setViewportError] = useState<string | null>(null);
 
+  const [showSavedMarkers, setShowSavedMarkers] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [addingId, setAddingId] = useState<string | null>(null);
 
   const { addRestaurant } = useAddRestaurant();
   const statusMap = useRestaurantStatusMap(results.map((r) => r.id));
+  const { data: savedRestaurants } = useSavedRestaurantsForMap();
 
   // Derive button visibility
   const showSearchButton =
@@ -150,19 +154,10 @@ export default function SearchPage() {
     }
   };
 
-  // Map markers
+  // Map markers — merged search results + saved restaurants
   const markers = useMemo(
-    () =>
-      results
-        .filter((p) => p.x && p.y)
-        .map((p) => ({
-          id: p.id,
-          lat: parseFloat(p.y),
-          lng: parseFloat(p.x),
-          name: p.place_name,
-          isWishlisted: statusMap.has(p.id),
-        })),
-    [results, statusMap],
+    () => mergeMarkers(results, savedRestaurants, currentBounds, showSavedMarkers),
+    [results, savedRestaurants, currentBounds, showSavedMarkers],
   );
 
   const fitBounds = useMemo(() => {
@@ -196,6 +191,13 @@ export default function SearchPage() {
     <div className="relative h-[calc(100vh-4rem)]">
       <div className="absolute top-0 left-0 right-0 z-20 p-4">
         <SearchBar onSearch={handleSearch} isLoading={isLoading} />
+      </div>
+
+      <div className="absolute top-4 right-4 z-20" style={{ marginTop: "3.5rem" }}>
+        <SavedMarkersToggle
+          isVisible={showSavedMarkers}
+          onToggle={() => setShowSavedMarkers((prev) => !prev)}
+        />
       </div>
 
       <div className="absolute top-16 left-0 right-0 z-20 flex justify-center">
