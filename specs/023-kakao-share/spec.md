@@ -25,7 +25,7 @@ A logged-in user wants to invite a friend to join the restaurant wishlist servic
 
 ### User Story 2 - Share Own Wishlist/Profile Page (Priority: P2)
 
-A user with a wishlist wants to share their personal restaurant list with a friend. They tap a "Share my list" button on their profile or wishlist page. The KakaoTalk share message includes their profile name, number of saved restaurants, and a direct link to their public profile/wishlist page.
+A user with a wishlist wants to share their personal restaurant list with a friend. They tap a "Share my list" button on their own profile page (the button does not appear on other users' profiles). The KakaoTalk share message includes their profile name, number of saved restaurants, and a direct link to their public profile/wishlist page.
 
 **Why this priority**: Sharing a personal wishlist is more viral than sharing the service homepage — it gives recipients a concrete reason to visit. Builds on P1's infrastructure.
 
@@ -44,18 +44,18 @@ A user with a wishlist wants to share their personal restaurant list with a frie
 - What happens when KakaoTalk is not installed on the device (mobile) or the browser does not support the Kakao Share SDK? → Fall back to a "Copy link" option so the user can share manually.
 - What happens when the user cancels the KakaoTalk share dialog without sending? → No error is shown; the user returns to the app in their previous state.
 - What if the shared link points to a user profile that no longer exists (account deleted)? → Recipient sees a graceful "User not found" message rather than a crash.
-- What if the user is not logged in when they try to share? → The share button is either hidden for guests or prompts login first.
+- What if the user is not logged in when they try to share? → The share button is visible but tapping it redirects to the login screen; after successful login the user is returned to their previous screen.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: Users MUST be able to initiate a KakaoTalk share from at least one prominent location in the app (e.g., main header, navigation menu, or profile page).
-- **FR-002**: The share message MUST include a service thumbnail image, title, short description, and a valid link to the service.
+- **FR-001**: Users MUST be able to initiate the service share via a KakaoTalk share button in the main app header, visible on all screens.
+- **FR-002**: The share message MUST include a service thumbnail image, title, and short description written in Korean, plus a valid link to the service.
 - **FR-003**: The shared link MUST be accessible to recipients who do not have an account, showing a public landing or profile page.
 - **FR-004**: When KakaoTalk sharing is unavailable (SDK not loaded, app not installed), the system MUST provide a fallback allowing users to copy the link to their clipboard.
-- **FR-005**: Users MUST be able to share their own public profile/wishlist page with a direct URL that resolves to their specific content.
-- **FR-006**: The share button/entry point MUST be visible only to logged-in users, or prompt login if tapped by a guest.
+- **FR-005**: Users MUST be able to share their own public profile/wishlist page via a share button that appears only on their own profile page (not on other users' profiles).
+- **FR-006**: The share button MUST be visible to all users (including guests); tapping it while unauthenticated MUST redirect to the login screen instead of opening the share dialog.
 - **FR-007**: The shared link MUST remain valid and functional indefinitely (no expiring tokens in the URL).
 
 ### Key Entities
@@ -71,6 +71,15 @@ A user with a wishlist wants to share their personal restaurant list with a frie
 - **SC-002**: 100% of shared links open the correct destination page without errors for recipients.
 - **SC-003**: The fallback "Copy link" mechanism works when KakaoTalk sharing is unavailable, confirmed by clipboard content matching the expected URL.
 - **SC-004**: A shared profile link displays the correct user's wishlist to any recipient, including non-authenticated visitors.
+
+## Clarifications
+
+### Session 2026-02-22
+
+- Q: Where should the share button be placed for P1 (service share)? → A: Main app header (visible on all screens)
+- Q: What happens when a guest (non-logged-in user) taps the share button? → A: Button is visible; tapping redirects guest to login first
+- Q: What language should the KakaoTalk share message content be in? → A: Korean only
+- Q: Can users share other people's profiles, or only their own? → A: Own profile only
 
 ## Assumptions
 
