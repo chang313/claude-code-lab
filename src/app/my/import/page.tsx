@@ -29,11 +29,10 @@ export default function ImportPage() {
   }, [router]);
 
   const handleImport = async () => {
-    const shareId = validateShareId(linkInput);
-    if (!shareId) return;
+    if (!validateShareId(linkInput)) return;
 
     setResult(null);
-    const importResult = await importFromNaver(shareId);
+    const importResult = await importFromNaver(linkInput);
     if (importResult) {
       setResult(importResult);
       setLinkInput("");

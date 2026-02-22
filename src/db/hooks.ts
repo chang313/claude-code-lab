@@ -4,16 +4,18 @@ import { createClient } from "@/lib/supabase/client";
 import { useSupabaseQuery } from "@/lib/supabase/use-query";
 import { invalidate, invalidateByPrefix, getCache, setCache } from "@/lib/supabase/invalidate";
 import { groupBySubcategory } from "@/lib/subcategory";
-import type { KakaoPlace, Restaurant, SubcategoryGroup } from "@/types";
+import type { KakaoPlace, Restaurant, SavedMarkerData, SubcategoryGroup } from "@/types";
 
 const RESTAURANTS_KEY = "restaurants";
 const VISITED_KEY = "restaurants:visited";
 const WISHLIST_KEY = "restaurants:wishlist";
+const MAP_MARKERS_KEY = "restaurants:map-markers";
 
 function invalidateRestaurants() {
   invalidate(RESTAURANTS_KEY);
   invalidate(VISITED_KEY);
   invalidate(WISHLIST_KEY);
+  invalidate(MAP_MARKERS_KEY);
   invalidateByPrefix("restaurant-status:");
   invalidateByPrefix("wishlisted-set:");
 }
@@ -424,6 +426,39 @@ export function useMoveToWishlist(onError?: (msg: string) => void) {
     }
   };
   return { moveToWishlist };
+}
+
+// === Map Marker Operations ===
+
+export function useSavedRestaurantsForMap() {
+  const { data, isLoading } = useSupabaseQuery<SavedMarkerData[]>(
+    MAP_MARKERS_KEY,
+    async () => {
+      const supabase = getSupabase();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from("restaurants")
+        .select("kakao_place_id, name, lat, lng, star_rating, category")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data as { kakao_place_id: string; name: string; lat: number; lng: number; star_rating: number | null; category: string }[]).map(
+        (row) => ({
+          kakaoPlaceId: row.kakao_place_id,
+          name: row.name,
+          lat: row.lat,
+          lng: row.lng,
+          starRating: row.star_rating,
+          category: row.category,
+        }),
+      );
+    },
+  );
+  return { data: data ?? [], isLoading };
 }
 
 export function useIsWishlisted(kakaoPlaceId: string): boolean {

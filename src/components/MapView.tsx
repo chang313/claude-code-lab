@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import type { Bounds } from "@/types";
+import type { Bounds, MarkerType } from "@/types";
 
 interface MapMarker {
   id: string;
   lat: number;
   lng: number;
   name: string;
-  isWishlisted: boolean;
+  markerType: MarkerType;
+  starRating?: number | null;
+  category?: string;
 }
 
 interface MapViewProps {
@@ -31,7 +33,9 @@ declare global {
         ) => KakaoMap;
         LatLng: new (lat: number, lng: number) => unknown;
         LatLngBounds: new () => KakaoLatLngBounds;
-        Marker: new (options: { map: KakaoMap; position: unknown }) => KakaoMarker;
+        Marker: new (options: { map: KakaoMap; position: unknown; image?: KakaoMarkerImage }) => KakaoMarker;
+        MarkerImage: new (src: string, size: KakaoSize) => KakaoMarkerImage;
+        Size: new (width: number, height: number) => KakaoSize;
         InfoWindow: new (options: { content: string }) => KakaoInfoWindow;
         event: {
           addListener: (
@@ -62,9 +66,53 @@ interface KakaoMarker {
   setMap: (map: KakaoMap | null) => void;
 }
 
+interface KakaoMarkerImage {
+  _brand: "KakaoMarkerImage";
+}
+
+interface KakaoSize {
+  _brand: "KakaoSize";
+}
+
 interface KakaoInfoWindow {
   open: (map: KakaoMap, marker: KakaoMarker) => void;
   close: () => void;
+}
+
+// SVG marker icons as data URIs (ASCII-only for btoa() compat)
+// Heart path for wishlist, star path for visited, circle for search
+const MARKER_SVGS: Record<MarkerType, string> = {
+  search: [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">',
+    '<path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.27 21.73 0 14 0z" fill="#E74C3C"/>',
+    '<circle cx="14" cy="14" r="5" fill="white"/>',
+    "</svg>",
+  ].join(""),
+  wishlist: [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">',
+    '<path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.27 21.73 0 14 0z" fill="#3498DB"/>',
+    '<path d="M14 8c-1.5-2-4.5-2.5-6 0s-1 5.5 6 10c7-4.5 7.5-7.5 6-10s-4.5-2-6 0z" fill="white"/>',
+    "</svg>",
+  ].join(""),
+  visited: [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">',
+    '<path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.27 21.73 0 14 0z" fill="#F39C12"/>',
+    '<path d="M14 6l2 4 4.5.7-3.2 3.1.8 4.5L14 16.1l-4.1 2.2.8-4.5L7.5 10.7 12 10z" fill="white"/>',
+    "</svg>",
+  ].join(""),
+};
+
+// Lazy: only build data URIs in browser (btoa unavailable during SSR)
+let markerIconCache: Record<MarkerType, string> | null = null;
+function getMarkerIconSrc(type: MarkerType): string {
+  if (!markerIconCache) {
+    markerIconCache = {
+      search: `data:image/svg+xml;base64,${btoa(MARKER_SVGS.search)}`,
+      wishlist: `data:image/svg+xml;base64,${btoa(MARKER_SVGS.wishlist)}`,
+      visited: `data:image/svg+xml;base64,${btoa(MARKER_SVGS.visited)}`,
+    };
+  }
+  return markerIconCache[type];
 }
 
 const DEFAULT_CENTER = { lat: 37.5665, lng: 126.978 }; // Seoul City Hall
@@ -149,13 +197,25 @@ export default function MapView({
 
     markers.forEach((m) => {
       const position = new window.kakao.maps.LatLng(m.lat, m.lng);
-      const marker = new window.kakao.maps.Marker({ map, position });
+      const markerImage = new window.kakao.maps.MarkerImage(
+        getMarkerIconSrc(m.markerType),
+        new window.kakao.maps.Size(28, 40),
+      );
+      const marker = new window.kakao.maps.Marker({ map, position, image: markerImage });
       markerRefs.current.push(marker);
+
+      let statusHtml = "";
+      if (m.markerType === "visited" && m.starRating) {
+        const stars = "★".repeat(m.starRating) + "☆".repeat(5 - m.starRating);
+        statusHtml = `<div style="color:#F39C12;font-size:12px;">${stars} 저장됨</div>`;
+      } else if (m.markerType === "wishlist") {
+        statusHtml = '<div style="color:#3498DB;font-size:12px;">♡ 가고 싶은 곳</div>';
+      }
 
       const infoContent = `
         <div style="padding:8px;min-width:150px;font-size:14px;">
           <strong>${m.name}</strong>
-          ${m.isWishlisted ? '<div style="color:green;font-size:12px;">&#10003; 저장됨</div>' : ""}
+          ${statusHtml}
         </div>
       `;
       const infoWindow = new window.kakao.maps.InfoWindow({

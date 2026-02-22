@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateShareId, parseNaverBookmarks, buildNaverApiUrl } from "@/lib/naver";
+import { validateShareId, parseNaverBookmarks, buildNaverApiUrl, isNaverShortUrl } from "@/lib/naver";
 import { makeNaverPlaceId } from "@/types";
 
 // === T006: validateShareId tests ===
@@ -25,10 +25,16 @@ describe("validateShareId", () => {
     expect(validateShareId("a".repeat(101))).toBeNull();
   });
 
-  it("extracts shareId from a full Naver URL", () => {
+  it("extracts short code from a naver.me URL", () => {
     const url = "https://naver.me/abc123DEF";
     const result = validateShareId(url);
     expect(result).toBe("abc123DEF");
+  });
+
+  it("extracts folder ID from full map.naver.com URL", () => {
+    const url = "https://map.naver.com/v5/favorite/myPlace/folder/806a7395149e4d1aae51ab4785fdc61d";
+    const result = validateShareId(url);
+    expect(result).toBe("806a7395149e4d1aae51ab4785fdc61d");
   });
 
   it("trims whitespace before validation", () => {
@@ -38,6 +44,30 @@ describe("validateShareId", () => {
   it("accepts exactly 100 character shareId", () => {
     const id = "a".repeat(100);
     expect(validateShareId(id)).toBe(id);
+  });
+});
+
+// === isNaverShortUrl tests ===
+
+describe("isNaverShortUrl", () => {
+  it("returns true for naver.me short URL", () => {
+    expect(isNaverShortUrl("https://naver.me/56XLwqee")).toBe(true);
+  });
+
+  it("returns true for naver.me URL without https", () => {
+    expect(isNaverShortUrl("naver.me/56XLwqee")).toBe(true);
+  });
+
+  it("returns false for map.naver.com URL", () => {
+    expect(isNaverShortUrl("https://map.naver.com/v5/favorite/myPlace/folder/abc123")).toBe(false);
+  });
+
+  it("returns false for direct share ID", () => {
+    expect(isNaverShortUrl("abc123DEF")).toBe(false);
+  });
+
+  it("returns false for empty string", () => {
+    expect(isNaverShortUrl("")).toBe(false);
   });
 });
 
