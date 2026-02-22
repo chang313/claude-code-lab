@@ -15,7 +15,7 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40"
+      className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-20"
       aria-label="메인 내비게이션"
     >
       <div className="max-w-lg mx-auto flex justify-around">
