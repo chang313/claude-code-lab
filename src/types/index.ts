@@ -158,3 +158,44 @@ export function mapDbRecommendation(row: DbRecommendation): Recommendation {
     resolvedAt: row.resolved_at,
   };
 }
+
+// === Naver Import types ===
+
+export interface NaverBookmark {
+  displayname: string;
+  name?: string;
+  px: number;
+  py: number;
+  address: string;
+}
+
+export interface NaverBookmarkResponse {
+  bookmarkList: NaverBookmark[];
+}
+
+export interface ImportBatch {
+  id: string;
+  sourceName: string;
+  shareId: string;
+  importedCount: number;
+  skippedCount: number;
+  invalidCount: number;
+  enrichmentStatus: "pending" | "running" | "completed" | "failed";
+  enrichedCount: number;
+  createdAt: string;
+}
+
+export interface ImportResult {
+  batchId: string;
+  importedCount: number;
+  skippedCount: number;
+  invalidCount: number;
+  totalCount: number;
+}
+
+/** Generate a synthetic kakao_place_id for Naver-imported restaurants. */
+export function makeNaverPlaceId(py: number, px: number): string {
+  const lat = Number(py.toFixed(6));
+  const lng = Number(px.toFixed(6));
+  return `naver_${lat}_${lng}`;
+}
