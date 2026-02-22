@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { validateShareId, parseNaverBookmarks, buildNaverApiUrl } from "@/lib/naver";
+import { validateShareId, parseNaverBookmarks, buildNaverApiUrl, isNaverShortUrl, resolveNaverShortUrl } from "@/lib/naver";
 
 export async function POST(request: Request) {
   let body: { shareId?: string };
@@ -12,12 +12,28 @@ export async function POST(request: Request) {
     );
   }
 
-  const shareId = validateShareId(body.shareId ?? "");
+  const rawInput = body.shareId ?? "";
+  let shareId = validateShareId(rawInput);
   if (!shareId) {
     return NextResponse.json(
       { error: "INVALID_SHARE_ID", message: "유효하지 않은 공유 링크입니다." },
       { status: 400 },
     );
+  }
+
+  // naver.me short URLs need redirect resolution to get the real folder ID
+  if (isNaverShortUrl(rawInput)) {
+    const resolvedId = await resolveNaverShortUrl(shareId);
+    if (!resolvedId) {
+      return NextResponse.json(
+        {
+          error: "NAVER_UNAVAILABLE",
+          message: "네이버 단축 URL을 확인할 수 없습니다. 링크가 유효한지 확인해주세요.",
+        },
+        { status: 502 },
+      );
+    }
+    shareId = resolvedId;
   }
 
   const url = buildNaverApiUrl(shareId);
