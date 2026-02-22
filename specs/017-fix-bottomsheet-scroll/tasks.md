@@ -19,7 +19,7 @@
 
 **Purpose**: Create test file and verify current behavior is broken
 
-- [ ] T001 Create test file `tests/unit/bottomsheet.test.tsx` with test setup (jsdom, React Testing Library imports, BottomSheet mock render helper)
+- [x] T001 Create test file `tests/unit/bottomsheet.test.tsx` with test setup (jsdom, React Testing Library imports, BottomSheet mock render helper)
 
 **Checkpoint**: Test infrastructure ready
 
@@ -33,17 +33,15 @@
 
 ### Tests for User Story 1
 
-> **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
-
-- [ ] T002 [US1] Write test: BottomSheet outer div uses flexbox column layout (`flex flex-col`) in `tests/unit/bottomsheet.test.tsx`
-- [ ] T003 [US1] Write test: BottomSheet scroll container uses `flex-1` and `overflow-y-auto` classes in `tests/unit/bottomsheet.test.tsx`
-- [ ] T004 [US1] Write test: BottomSheet scroll container has bottom padding for nav bar (`pb-20`) in `tests/unit/bottomsheet.test.tsx`
+- [x] T002 [US1] Write test: BottomSheet outer div uses flexbox column layout (`flex flex-col`) in `tests/unit/bottomsheet.test.tsx`
+- [x] T003 [US1] Write test: BottomSheet scroll container uses `flex-1` and `overflow-y-auto` classes in `tests/unit/bottomsheet.test.tsx`
+- [x] T004 [US1] Write test: BottomSheet scroll container has bottom padding for nav bar (`pb-20`) in `tests/unit/bottomsheet.test.tsx`
 
 ### Implementation for User Story 1
 
-- [ ] T005 [US1] Change BottomSheet outer div from `height: "100%"` to `height: "100dvh"` and add `flex flex-col` classes in `src/components/BottomSheet.tsx`
-- [ ] T006 [US1] Replace scroll container `style={{ height: "calc(100% - 2.5rem)" }}` with `flex-1 min-h-0` classes and change `pb-24` to `pb-20` in `src/components/BottomSheet.tsx`
-- [ ] T007 [US1] Verify tests T002-T004 pass (green)
+- [x] T005 [US1] Change BottomSheet outer div from `height: "100%"` to `height: "100dvh"` and add `flex flex-col` classes in `src/components/BottomSheet.tsx`
+- [x] T006 [US1] Replace scroll container `style={{ height: "calc(100% - 2.5rem)" }}` with `flex-1 min-h-0` classes and change `pb-24` to `pb-20` in `src/components/BottomSheet.tsx`
+- [x] T007 [US1] Verify tests T002-T004 pass (green)
 
 **Checkpoint**: Users can now scroll through all results in expanded sheet. MVP complete.
 
@@ -57,12 +55,12 @@
 
 ### Tests for User Story 2
 
-- [ ] T008 [US2] Write test: `handleTouchMove` uses `currentTranslateY.current` (not hardcoded "peek") as drag base in `tests/unit/bottomsheet.test.tsx`
+- [x] T008 [US2] Write test: `handleTouchMove` uses `currentTranslateY.current` (not hardcoded "peek") as drag base in `tests/unit/bottomsheet.test.tsx`
 
 ### Implementation for User Story 2
 
-- [ ] T009 [US2] Fix `handleTouchMove` in `src/components/BottomSheet.tsx`: replace `getTranslateY("peek")` with `currentTranslateY.current` for drag base calculation
-- [ ] T010 [US2] Verify test T008 passes (green)
+- [x] T009 [US2] Fix `handleTouchMove` in `src/components/BottomSheet.tsx`: replace `getTranslateY("peek")` with `currentTranslateY.current` for drag base calculation
+- [x] T010 [US2] Verify test T008 passes (green)
 
 **Checkpoint**: Dragging the sheet from any state now follows the finger smoothly.
 
@@ -76,12 +74,12 @@
 
 ### Tests for User Story 3
 
-- [ ] T011 [US3] Write test: BottomNav uses `z-20` class (not `z-40`) in `tests/unit/bottomsheet.test.tsx`
+- [x] T011 [US3] Write test: BottomNav uses `z-20` class (not `z-40`) in `tests/unit/bottomsheet.test.tsx`
 
 ### Implementation for User Story 3
 
-- [ ] T012 [US3] Change BottomNav z-index from `z-40` to `z-20` in `src/components/BottomNav.tsx`
-- [ ] T013 [US3] Verify test T011 passes (green)
+- [x] T012 [US3] Change BottomNav z-index from `z-40` to `z-20` in `src/components/BottomNav.tsx`
+- [x] T013 [US3] Verify test T011 passes (green)
 
 **Checkpoint**: Layering is correct across all sheet states.
 
@@ -91,52 +89,9 @@
 
 **Purpose**: Final validation across all fixes
 
-- [ ] T014 Run full test suite (`pnpm test`) to ensure no regressions
-- [ ] T015 Run build verification (`tsc --noEmit && pnpm build`) to ensure type safety
+- [x] T014 Run full test suite (`pnpm test`) to ensure no regressions
+- [x] T015 Run build verification (`tsc --noEmit && pnpm build`) to ensure type safety
 - [ ] T016 Manual verification on mobile viewport: test all three sheet states with 20+ search results
-
----
-
-## Dependencies & Execution Order
-
-### Phase Dependencies
-
-- **Setup (Phase 1)**: No dependencies — start immediately
-- **US1 (Phase 2)**: Depends on Phase 1 — core scroll fix
-- **US2 (Phase 3)**: Independent of US1 (different code path in BottomSheet.tsx) — can run in parallel
-- **US3 (Phase 4)**: Independent of US1/US2 (different file: BottomNav.tsx) — can run in parallel
-- **Polish (Phase 5)**: Depends on all user stories being complete
-
-### User Story Dependencies
-
-- **User Story 1 (P1)**: Can start after Setup — no dependencies on other stories
-- **User Story 2 (P2)**: Can start after Setup — modifies different function in same file as US1
-- **User Story 3 (P3)**: Can start after Setup — modifies different file (BottomNav.tsx)
-
-### Parallel Opportunities
-
-- T002, T003, T004 can be written in one pass (same test file, different test cases)
-- US2 (T008-T010) and US3 (T011-T013) can run in parallel with US1 (different code paths/files)
-- T005 and T006 are sequential (same file, related changes)
-
----
-
-## Implementation Strategy
-
-### MVP First (User Story 1 Only)
-
-1. Complete Phase 1: Setup (T001)
-2. Complete Phase 2: US1 Tests + Implementation (T002-T007)
-3. **STOP and VALIDATE**: All results scrollable in expanded sheet
-4. Deploy/demo if ready
-
-### Incremental Delivery
-
-1. T001 → Test setup ready
-2. T002-T007 → US1 complete: scroll fix (MVP)
-3. T008-T010 → US2 complete: smooth drag
-4. T011-T013 → US3 complete: z-index layering
-5. T014-T016 → Polish: full regression + build + manual QA
 
 ---
 

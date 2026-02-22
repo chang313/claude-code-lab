@@ -50,8 +50,7 @@ export default function BottomSheet({
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isDragging.current || !sheetRef.current) return;
     const dy = e.touches[0].clientY - dragStartY.current;
-    const pct = parseFloat(getTranslateY("peek"));
-    const baseY = (window.innerHeight * pct) / 100;
+    const baseY = currentTranslateY.current;
     const newY = Math.max(0, baseY + dy);
     sheetRef.current.style.transform = `translateY(${newY}px)`;
   }, []);
@@ -83,12 +82,12 @@ export default function BottomSheet({
   return (
     <div
       ref={sheetRef}
-      className={`fixed inset-x-0 bottom-0 z-30 bg-white rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] ${
+      className={`fixed inset-x-0 bottom-0 z-30 flex flex-col bg-white rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] ${
         dragging ? "" : "transition-transform duration-300 ease-out"
       }`}
       style={{
         transform: dragging ? undefined : `translateY(${getTranslateY(state)})`,
-        height: "100%",
+        height: "100dvh",
       }}
     >
       <div
@@ -99,7 +98,7 @@ export default function BottomSheet({
       >
         <div className="w-10 h-1 bg-gray-300 rounded-full" />
       </div>
-      <div className="overflow-y-auto px-4 pb-24" style={{ height: "calc(100% - 2.5rem)" }}>
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-20">
         {children}
       </div>
     </div>
