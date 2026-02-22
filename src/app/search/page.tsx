@@ -216,9 +216,9 @@ export default function SearchPage() {
             </div>
           ) : results.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <p className="text-lg">이 지역에서 음식점을 찾을 수 없습니다</p>
+              <p className="text-lg">검색 결과가 없습니다</p>
               <p className="text-sm mt-1">
-                다른 검색어를 입력하거나 지도를 이동해 보세요
+                다른 검색어를 입력해 보세요
               </p>
             </div>
           ) : (

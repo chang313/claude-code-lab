@@ -63,6 +63,92 @@ describe("viewportSearch relevance sort", () => {
   });
 });
 
+describe("smartSearch global fallback", () => {
+  it("should fall back to global search when local results are fewer than 5", async () => {
+    const localDocs = [mockDoc("local-1", "100"), mockDoc("local-2", "200")];
+    const globalDocs = Array.from({ length: 10 }, (_, i) =>
+      mockDoc(`global-${i}`, `${(i + 1) * 1000}`),
+    );
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        const parsedUrl = new URL(url);
+        const hasRadius = parsedUrl.searchParams.has("radius");
+        const docs = hasRadius ? localDocs : globalDocs;
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve(mockResponse(docs)),
+        });
+      }),
+    );
+
+    const results = await smartSearch({ query: "산토리니", x: "127.0", y: "37.5" });
+
+    // Should return global results (10) since local was < 5
+    expect(results.length).toBe(10);
+    expect(results[0].id).toBe("global-0");
+
+    // Verify global fetch calls did NOT include radius
+    const fetchCalls = vi.mocked(fetch).mock.calls;
+    const globalCalls = fetchCalls.filter((call) => {
+      const u = new URL(call[0] as string);
+      return !u.searchParams.has("radius");
+    });
+    expect(globalCalls.length).toBeGreaterThan(0);
+  });
+
+  it("should search globally without radius when no location provided", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockResponse([mockDoc("1", "0")])),
+      }),
+    );
+
+    await smartSearch({ query: "산토리니" });
+
+    const fetchCalls = vi.mocked(fetch).mock.calls;
+    for (const call of fetchCalls) {
+      const url = new URL(call[0] as string);
+      expect(url.searchParams.has("radius")).toBe(false);
+      expect(url.searchParams.has("x")).toBe(false);
+      expect(url.searchParams.has("y")).toBe(false);
+    }
+  });
+});
+
+describe("smartSearch local prioritization", () => {
+  it("should return local results when 5 or more exist without global fallback", async () => {
+    const localDocs = Array.from({ length: 8 }, (_, i) =>
+      mockDoc(`local-${i}`, `${(i + 1) * 100}`),
+    );
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockResponse(localDocs)),
+      }),
+    );
+
+    const results = await smartSearch({ query: "치킨", x: "127.0", y: "37.5" });
+
+    // Should return the 8 local results
+    expect(results.length).toBe(8);
+    expect(results[0].id).toBe("local-0");
+
+    // All fetch calls should include radius (local only, no global fallback)
+    const fetchCalls = vi.mocked(fetch).mock.calls;
+    for (const call of fetchCalls) {
+      const url = new URL(call[0] as string);
+      expect(url.searchParams.has("radius")).toBe(true);
+    }
+  });
+});
+
 describe("deduplicateAndSort preserves insertion order", () => {
   it("should preserve relevance order instead of sorting by distance", async () => {
     // Results come back in relevance order from API: far restaurant first (more relevant), near second
