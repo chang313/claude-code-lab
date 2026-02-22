@@ -26,15 +26,17 @@ describe("RestaurantCard star rating on profile pages", () => {
 
     // All star buttons should be disabled (readonly)
     const stars = screen.getAllByRole("button", { name: /점$/ });
-    expect(stars).toHaveLength(3);
+    expect(stars).toHaveLength(5);
     stars.forEach((star) => {
       expect(star).toBeDisabled();
     });
 
-    // First 2 stars filled (rating=2), third gray
+    // First 2 stars filled (rating=2), rest gray
     expect(stars[0]).toHaveClass("text-yellow-400");
     expect(stars[1]).toHaveClass("text-yellow-400");
     expect(stars[2]).toHaveClass("text-gray-300");
+    expect(stars[3]).toHaveClass("text-gray-300");
+    expect(stars[4]).toHaveClass("text-gray-300");
   });
 
   it("does not show star rating on wishlist card", () => {
@@ -57,7 +59,7 @@ describe("RestaurantCard star rating on profile pages", () => {
     );
 
     const stars = screen.getAllByRole("button", { name: /점$/ });
-    expect(stars).toHaveLength(3);
+    expect(stars).toHaveLength(5);
 
     // Stars should NOT be disabled when editable
     stars.forEach((star) => {
@@ -65,8 +67,8 @@ describe("RestaurantCard star rating on profile pages", () => {
     });
   });
 
-  it("shows correct stars for all rating values (1, 2, 3)", () => {
-    for (const rating of [1, 2, 3]) {
+  it("shows correct stars for all rating values (1, 2, 3, 4, 5)", () => {
+    for (const rating of [1, 2, 3, 4, 5]) {
       const { unmount } = render(
         <RestaurantCard
           restaurant={{ ...visitedRestaurant, starRating: rating }}
@@ -75,7 +77,7 @@ describe("RestaurantCard star rating on profile pages", () => {
       );
 
       const stars = screen.getAllByRole("button", { name: /점$/ });
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 5; i++) {
         if (i < rating) {
           expect(stars[i]).toHaveClass("text-yellow-400");
         } else {

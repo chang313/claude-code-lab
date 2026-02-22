@@ -167,7 +167,7 @@ export function useRemoveRestaurant() {
 export function useUpdateStarRating() {
   const updateStarRating = async (
     kakaoPlaceId: string,
-    rating: 1 | 2 | 3,
+    rating: 1 | 2 | 3 | 4 | 5,
   ): Promise<void> => {
     const supabase = getSupabase();
     const { error } = await supabase
@@ -184,7 +184,7 @@ export function useUpdateStarRating() {
 export function useMarkAsVisited() {
   const markAsVisited = async (
     kakaoPlaceId: string,
-    rating: 1 | 2 | 3,
+    rating: 1 | 2 | 3 | 4 | 5,
   ): Promise<void> => {
     const supabase = getSupabase();
     const { error } = await supabase
