@@ -33,17 +33,18 @@ export function useNaverImport() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const importFromNaver = async (shareId: string): Promise<ImportResult | null> => {
+  const importFromNaver = async (rawInput: string): Promise<ImportResult | null> => {
     setIsImporting(true);
     setError(null);
     setProgress(null);
 
     try {
       // Step 1: Fetch bookmarks from Naver via API proxy
+      // Send raw input (URL or share ID) so the API can resolve short URLs
       const fetchRes = await fetch("/api/import/naver", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shareId }),
+        body: JSON.stringify({ shareId: rawInput }),
       });
 
       if (!fetchRes.ok) {
@@ -75,8 +76,8 @@ export function useNaverImport() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          shareId,
-          sourceName: naverData.folderName || shareId,
+          shareId: rawInput,
+          sourceName: naverData.folderName || rawInput,
           bookmarks,
         }),
       });
