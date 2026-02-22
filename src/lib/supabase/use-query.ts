@@ -12,13 +12,15 @@ export function useSupabaseQuery<T>(
   const [isLoading, setIsLoading] = useState(true);
   const queryFnRef = useRef(queryFn);
   queryFnRef.current = queryFn;
+  const hasDataRef = useRef(false);
 
   const execute = useCallback(async () => {
-    setIsLoading(true);
+    if (!hasDataRef.current) setIsLoading(true);
     try {
       const result = await queryFnRef.current();
       setData(result);
       setCache(key, result);
+      hasDataRef.current = true;
     } finally {
       setIsLoading(false);
     }
