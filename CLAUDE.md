@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `claude-code-lab` is a mobile-first web app for managing restaurant wishlists with Kakao Maps integration. Built with Next.js 16 App Router, it uses Supabase for authentication (Kakao OAuth) and cloud-synced data storage.
 
-**Key Features**: Viewport-based search ("Search this area" on pan/zoom, up to 300 results) with semantic expansion (e.g., "chicken" finds KFC) and relevance sorting, global fallback search for distant restaurants, integrated map view with markers + bottom sheet, wishlist with star ratings (visible on other users' profiles), Naver Map bookmark import with Kakao enrichment, per-user cloud sync, optimistic add-to-list UI with success/error toast feedback.
+**Key Features**: Viewport-based search ("Search this area" on pan/zoom, up to 300 results) with semantic expansion (e.g., "chicken" finds KFC) and relevance sorting, global fallback search for distant restaurants, integrated map view with distinct markers (search/wishlist/visited) + bottom sheet, wishlist with star ratings (visible on other users' profiles), Naver Map bookmark import with Kakao enrichment, per-user cloud sync, optimistic add-to-list UI with success/error toast feedback.
 
 ## Claude Code Guide Usage
 
@@ -27,4 +27,4 @@ Project rules are in `.claude/rules/`:
 
 ## Feature History
 
-See [CHANGELOG.md](CHANGELOG.md) for the full feature history (001–020).
+See [CHANGELOG.md](CHANGELOG.md) for the full feature history (001–021).
