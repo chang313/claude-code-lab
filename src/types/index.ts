@@ -41,6 +41,19 @@ export interface KakaoSearchResponse {
   };
 }
 
+// === Map Marker types ===
+
+export type MarkerType = "search" | "wishlist" | "visited";
+
+export interface SavedMarkerData {
+  kakaoPlaceId: string;
+  name: string;
+  lat: number;
+  lng: number;
+  starRating: number | null;
+  category: string;
+}
+
 export interface LatLng {
   lat: number;
   lng: number;
