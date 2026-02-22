@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useSupabaseQuery } from "@/lib/supabase/use-query";
-import { invalidate } from "@/lib/supabase/invalidate";
+import { invalidate, invalidateByPrefix } from "@/lib/supabase/invalidate";
 import { groupBySubcategory } from "@/lib/subcategory";
 import type { KakaoPlace, Restaurant, SubcategoryGroup } from "@/types";
 
@@ -14,6 +14,8 @@ function invalidateRestaurants() {
   invalidate(RESTAURANTS_KEY);
   invalidate(VISITED_KEY);
   invalidate(WISHLIST_KEY);
+  invalidateByPrefix("restaurant-status:");
+  invalidateByPrefix("wishlisted-set:");
 }
 
 function getSupabase() {

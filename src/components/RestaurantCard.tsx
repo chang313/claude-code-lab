@@ -14,6 +14,7 @@ interface RestaurantCardProps {
   distance?: string;
   isWishlisted?: boolean;
   savedStatus?: "wishlist" | "visited" | null;
+  isAdding?: boolean;
   onAddToWishlist?: () => void;
   onAddAsVisited?: (rating: 1 | 2 | 3 | 4 | 5) => void;
   onRemove?: () => void;
@@ -29,6 +30,7 @@ export default function RestaurantCard({
   distance,
   isWishlisted,
   savedStatus,
+  isAdding,
   onAddToWishlist,
   onAddAsVisited,
   onRemove,
@@ -107,7 +109,8 @@ export default function RestaurantCard({
                 {onAddAsVisited && (
                   <button
                     onClick={() => onAddAsVisited(1)}
-                    className="px-3 py-1.5 bg-yellow-500 text-white text-sm font-medium rounded-lg hover:bg-yellow-600 active:bg-yellow-700 transition-colors"
+                    disabled={isAdding}
+                    className={`px-3 py-1.5 bg-yellow-500 text-white text-sm font-medium rounded-lg hover:bg-yellow-600 active:bg-yellow-700 transition-colors${isAdding ? " opacity-50 pointer-events-none" : ""}`}
                     aria-label={`${restaurant.name} 방문 추가`}
                   >
                     ★
@@ -115,10 +118,11 @@ export default function RestaurantCard({
                 )}
                 <button
                   onClick={onAddToWishlist}
-                  className="px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors"
+                  disabled={isAdding}
+                  className={`px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors${isAdding ? " opacity-50 pointer-events-none" : ""}`}
                   aria-label={`${restaurant.name} 위시리스트 추가`}
                 >
-                  + 추가
+                  {isAdding ? "…" : "+ 추가"}
                 </button>
               </div>
             )}

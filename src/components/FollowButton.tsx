@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useFollowUser, useUnfollowUser, useIsFollowing } from "@/db/follow-hooks";
-import ErrorToast from "./ErrorToast";
+import Toast from "./Toast";
 
 interface FollowButtonProps {
   userId: string;
@@ -46,7 +46,7 @@ export default function FollowButton({ userId }: FollowButtonProps) {
       >
         {isPending ? "..." : isFollowing ? "팔로잉" : "팔로우"}
       </button>
-      {error && <ErrorToast message={error} onDismiss={() => setError(null)} />}
+      {error && <Toast message={error} type="error" onDismiss={() => setError(null)} />}
     </>
   );
 }
