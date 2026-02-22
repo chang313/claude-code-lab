@@ -16,7 +16,11 @@
       "Bash(/Users/parkchanghyeon/github/claude-code-lab/.specify/scripts/bash/create-new-feature.sh:*)",
       "Bash(/Users/parkchanghyeon/github/claude-code-lab/.specify/scripts/bash/check-prerequisites.sh:*)",
       "Bash(/Users/parkchanghyeon/github/claude-code-lab/.specify/scripts/bash/setup-plan.sh:*)",
-      "Bash(/Users/parkchanghyeon/github/claude-code-lab/.specify/scripts/bash/update-agent-context.sh:*)"
+      "Bash(/Users/parkchanghyeon/github/claude-code-lab/.specify/scripts/bash/update-agent-context.sh:*)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(git checkout:*)",
+      "Bash(python3 -m json.tool)",
+      "Bash(echo:*)"
     ]
   }
 }
