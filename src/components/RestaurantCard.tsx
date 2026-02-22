@@ -15,9 +15,9 @@ interface RestaurantCardProps {
   isWishlisted?: boolean;
   savedStatus?: "wishlist" | "visited" | null;
   onAddToWishlist?: () => void;
-  onAddAsVisited?: (rating: 1 | 2 | 3) => void;
+  onAddAsVisited?: (rating: 1 | 2 | 3 | 4 | 5) => void;
   onRemove?: () => void;
-  onStarChange?: (rating: 1 | 2 | 3) => void;
+  onStarChange?: (rating: 1 | 2 | 3 | 4 | 5) => void;
   onClick?: () => void;
   onRecommend?: () => void;
   onMoveToWishlist?: () => void;
@@ -69,14 +69,14 @@ export default function RestaurantCard({
         {/* Visited cards: editable stars if handler provided, readonly otherwise */}
         {variant === "visited" && onStarChange && (
           <StarRating
-            value={restaurant.starRating as 1 | 2 | 3}
+            value={restaurant.starRating as 1 | 2 | 3 | 4 | 5}
             onChange={onStarChange}
             size="sm"
           />
         )}
         {variant === "visited" && !onStarChange && restaurant.starRating != null && (
           <StarRating
-            value={restaurant.starRating as 1 | 2 | 3}
+            value={restaurant.starRating as 1 | 2 | 3 | 4 | 5}
             readonly
             size="sm"
           />

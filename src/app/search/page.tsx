@@ -126,7 +126,7 @@ export default function SearchPage() {
   };
 
   // Add as visited (star_rating = rating)
-  const handleAddAsVisited = async (place: KakaoPlace, rating: 1 | 2 | 3) => {
+  const handleAddAsVisited = async (place: KakaoPlace, rating: 1 | 2 | 3 | 4 | 5) => {
     await addRestaurant(place, rating);
     setSelectedPlace(null);
   };

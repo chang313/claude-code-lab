@@ -162,6 +162,17 @@ describe("useMarkAsVisited", () => {
     expect(invalidateCalls).toContain("restaurants");
     expect(invalidateCalls).toContain("wishlisted:kakao-456");
   });
+
+  it("accepts rating value 5 (new max)", async () => {
+    const { result } = renderHook(() => useMarkAsVisited());
+
+    await act(async () => {
+      await result.current.markAsVisited("kakao-456", 5);
+    });
+
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0].data).toEqual({ star_rating: 5 });
+  });
 });
 
 describe("useMoveToWishlist", () => {

@@ -60,13 +60,13 @@ export default function RestaurantDetailPage({
         <span className="text-sm font-medium text-gray-600">평점:</span>
         {readOnly ? (
           <StarRating
-            value={restaurant.starRating as 1 | 2 | 3}
+            value={restaurant.starRating as 1 | 2 | 3 | 4 | 5}
             onChange={() => {}}
             size="sm"
           />
         ) : (
           <StarRating
-            value={restaurant.starRating as 1 | 2 | 3}
+            value={restaurant.starRating as 1 | 2 | 3 | 4 | 5}
             onChange={(rating) => updateStarRating(id, rating)}
           />
         )}

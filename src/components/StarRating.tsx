@@ -1,8 +1,8 @@
 "use client";
 
 interface StarRatingProps {
-  value: 1 | 2 | 3 | null;
-  onChange?: (rating: 1 | 2 | 3) => void;
+  value: 1 | 2 | 3 | 4 | 5 | null;
+  onChange?: (rating: 1 | 2 | 3 | 4 | 5) => void;
   readonly?: boolean;
   size?: "sm" | "md" | "lg";
 }
@@ -21,7 +21,7 @@ export default function StarRating({
 }: StarRatingProps) {
   return (
     <div className="flex gap-0.5" role="group" aria-label="별점">
-      {([1, 2, 3] as const).map((star) => (
+      {([1, 2, 3, 4, 5] as const).map((star) => (
         <button
           key={star}
           type="button"

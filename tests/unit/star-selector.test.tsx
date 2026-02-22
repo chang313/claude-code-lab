@@ -3,10 +3,10 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import StarRating from "@/components/StarRating";
 
 describe("StarRating component", () => {
-  it("should render 3 star buttons", () => {
+  it("should render 5 star buttons", () => {
     render(<StarRating value={1} />);
     const stars = screen.getAllByRole("button");
-    expect(stars).toHaveLength(3);
+    expect(stars).toHaveLength(5);
   });
 
   it("should show default value of 1 star filled", () => {
@@ -16,32 +16,34 @@ describe("StarRating component", () => {
     expect(stars[0]).toHaveClass("text-yellow-400");
     expect(stars[1]).toHaveClass("text-gray-300");
     expect(stars[2]).toHaveClass("text-gray-300");
+    expect(stars[3]).toHaveClass("text-gray-300");
+    expect(stars[4]).toHaveClass("text-gray-300");
   });
 
-  it("should call onChange with correct rating when star 3 is clicked", () => {
+  it("should call onChange with correct rating when star 5 is clicked", () => {
     const onChange = vi.fn();
     render(<StarRating value={1} onChange={onChange} />);
 
     const stars = screen.getAllByRole("button");
-    fireEvent.click(stars[2]); // Click star 3
+    fireEvent.click(stars[4]); // Click star 5
 
-    expect(onChange).toHaveBeenCalledWith(3);
+    expect(onChange).toHaveBeenCalledWith(5);
   });
 
   it("should reflect selected rating visually", () => {
-    render(<StarRating value={3} />);
+    render(<StarRating value={5} />);
     const stars = screen.getAllByRole("button");
-    // All 3 stars should be yellow (filled)
+    // All 5 stars should be yellow (filled)
     expect(stars[0]).toHaveClass("text-yellow-400");
     expect(stars[1]).toHaveClass("text-yellow-400");
     expect(stars[2]).toHaveClass("text-yellow-400");
+    expect(stars[3]).toHaveClass("text-yellow-400");
+    expect(stars[4]).toHaveClass("text-yellow-400");
   });
 });
 
 describe("Star rating passed to addRestaurant", () => {
   it("should pass selected rating instead of hardcoded 1", () => {
-    // This tests the integration logic: when selectedRating is 3,
-    // addRestaurant should be called with (place, 3) not (place, 1)
     const addRestaurant = vi.fn();
     const place = {
       id: "123",
@@ -54,11 +56,11 @@ describe("Star rating passed to addRestaurant", () => {
       y: "37.5",
       place_url: "",
     };
-    const selectedRating = 3;
+    const selectedRating = 5;
 
     addRestaurant(place, selectedRating);
 
-    expect(addRestaurant).toHaveBeenCalledWith(place, 3);
+    expect(addRestaurant).toHaveBeenCalledWith(place, 5);
     expect(addRestaurant).not.toHaveBeenCalledWith(place, 1);
   });
 });
