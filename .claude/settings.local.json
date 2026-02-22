@@ -20,7 +20,8 @@
       "WebFetch(domain:docs.anthropic.com)",
       "Bash(git checkout:*)",
       "Bash(python3 -m json.tool)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(git worktree:*)"
     ]
   }
 }

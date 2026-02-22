@@ -9,6 +9,12 @@
 - After deleting files or modules, run `rm -rf .next` before `tsc --noEmit` — stale cache references deleted files.
 - After squash-merging, grep tests for deleted imports before considering cleanup done: `grep -r "deleted-function\|deleted-route" tests/`
 
+## Merge Conflict Resolution
+
+- For spec/task files (`specs/**/*.md`): use `git checkout --ours` to keep the feature branch's version, then `git add` to mark resolved.
+- After auto-merge, always verify merged code files — build + test passing confirms correctness.
+- `git checkout --ours` = current branch, `--theirs` = incoming branch (not chronological order).
+
 ## Before Ending a Session
 
 - Always commit or stash before a context window ends — branches and working tree state are not preserved across Claude sessions.
