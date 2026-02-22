@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import AuthCacheGuard from "./AuthCacheGuard";
 import BottomNav from "./BottomNav";
 import OfflineBanner from "./OfflineBanner";
 import TopBar from "./TopBar";
@@ -15,6 +16,7 @@ export default function AuthLayoutShell({
 
   return (
     <>
+      <AuthCacheGuard />
       {!isLoginPage && <OfflineBanner />}
       {!isLoginPage && <TopBar />}
       <main className="max-w-lg mx-auto px-4 pt-4">{children}</main>
