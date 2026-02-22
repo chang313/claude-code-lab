@@ -64,7 +64,11 @@ export default function UserProfileView({
 
   return (
     <div className="max-w-lg mx-auto px-4 pt-4 pb-24">
-      <ProfileHeader profile={profile} isOwnProfile={isOwnProfile} />
+      <ProfileHeader
+        profile={profile}
+        isOwnProfile={isOwnProfile}
+        wishlistCount={wishlistCount}
+      />
 
       <FollowTabs
         userId={userId}

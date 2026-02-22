@@ -1,17 +1,27 @@
 "use client";
 
+import { useState } from "react";
 import type { UserProfileWithCounts } from "@/types";
 import FollowButton from "./FollowButton";
+import ShareButton from "./ShareButton";
+import Toast from "./Toast";
 
 interface ProfileHeaderProps {
   profile: UserProfileWithCounts;
   isOwnProfile: boolean;
+  wishlistCount?: number;
 }
 
 export default function ProfileHeader({
   profile,
   isOwnProfile,
+  wishlistCount = 0,
 }: ProfileHeaderProps) {
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
+
   return (
     <div className="flex flex-col items-center gap-4 py-6">
       {profile.avatarUrl ? (
@@ -41,7 +51,25 @@ export default function ProfileHeader({
         </div>
       </div>
 
-      {!isOwnProfile && <FollowButton userId={profile.id} />}
+      {isOwnProfile ? (
+        <ShareButton
+          type="profile"
+          userId={profile.id}
+          displayName={profile.displayName}
+          wishlistCount={wishlistCount}
+          onResult={(result) => setToast(result)}
+        />
+      ) : (
+        <FollowButton userId={profile.id} />
+      )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onDismiss={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }
