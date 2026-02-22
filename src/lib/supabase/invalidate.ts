@@ -15,6 +15,12 @@ export function invalidate(key: string) {
   listeners.get(key)?.forEach((fn) => fn());
 }
 
+export function invalidateByPrefix(prefix: string) {
+  for (const [key, set] of listeners) {
+    if (key.startsWith(prefix)) set.forEach((fn) => fn());
+  }
+}
+
 export function invalidateAll() {
   listeners.forEach((set) => set.forEach((fn) => fn()));
 }

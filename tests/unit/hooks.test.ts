@@ -62,6 +62,7 @@ vi.mock("@/lib/supabase/client", () => ({
 const invalidateCalls: string[] = [];
 vi.mock("@/lib/supabase/invalidate", () => ({
   invalidate: (key: string) => invalidateCalls.push(key),
+  invalidateByPrefix: (prefix: string) => invalidateCalls.push(`prefix:${prefix}`),
   subscribe: () => () => {},
   invalidateAll: () => {},
 }));

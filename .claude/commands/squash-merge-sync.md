@@ -4,7 +4,7 @@ description: After a squash-merged PR, cherry-pick orphaned commits from the fea
 
 ## Context
 
-- Current branch: !`git branch --show-current`
+- Current branch: !`git rev-parse --abbrev-ref HEAD`
 - Worktrees: !`git worktree list`
 - Remote main: !`git log --oneline origin/main -3`
 - Feature branch log: !`git log --oneline origin/main..HEAD`

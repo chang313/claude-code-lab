@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useSupabaseQuery } from "@/lib/supabase/use-query";
-import { invalidate } from "@/lib/supabase/invalidate";
+import { invalidate, invalidateByPrefix } from "@/lib/supabase/invalidate";
 import { groupBySubcategory } from "@/lib/subcategory";
 import type { KakaoPlace, Restaurant, SavedMarkerData, SubcategoryGroup } from "@/types";
 
@@ -16,6 +16,8 @@ function invalidateRestaurants() {
   invalidate(VISITED_KEY);
   invalidate(WISHLIST_KEY);
   invalidate(MAP_MARKERS_KEY);
+  invalidateByPrefix("restaurant-status:");
+  invalidateByPrefix("wishlisted-set:");
 }
 
 function getSupabase() {
@@ -184,9 +186,14 @@ export function useAddRestaurant() {
 export function useRemoveRestaurant() {
   const removeRestaurant = async (kakaoPlaceId: string): Promise<void> => {
     const supabase = getSupabase();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
     const { error } = await supabase
       .from("restaurants")
       .delete()
+      .eq("user_id", user.id)
       .eq("kakao_place_id", kakaoPlaceId);
     if (error) throw error;
     invalidateRestaurants();
@@ -200,9 +207,14 @@ export function useUpdateStarRating() {
     rating: 1 | 2 | 3 | 4 | 5,
   ): Promise<void> => {
     const supabase = getSupabase();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
     const { error } = await supabase
       .from("restaurants")
       .update({ star_rating: rating })
+      .eq("user_id", user.id)
       .eq("kakao_place_id", kakaoPlaceId);
     if (error) throw error;
     invalidateRestaurants();
@@ -217,9 +229,14 @@ export function useMarkAsVisited() {
     rating: 1 | 2 | 3 | 4 | 5,
   ): Promise<void> => {
     const supabase = getSupabase();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
     const { error } = await supabase
       .from("restaurants")
       .update({ star_rating: rating })
+      .eq("user_id", user.id)
       .eq("kakao_place_id", kakaoPlaceId);
     if (error) throw error;
     invalidateRestaurants();
@@ -231,9 +248,14 @@ export function useMarkAsVisited() {
 export function useMoveToWishlist() {
   const moveToWishlist = async (kakaoPlaceId: string): Promise<void> => {
     const supabase = getSupabase();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
     const { error } = await supabase
       .from("restaurants")
       .update({ star_rating: null })
+      .eq("user_id", user.id)
       .eq("kakao_place_id", kakaoPlaceId);
     if (error) throw error;
     invalidateRestaurants();
