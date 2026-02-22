@@ -1,0 +1,49 @@
+name: Claude PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  claude-review:
+    if: |
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are reviewing a PR for claude-code-lab, a mobile-first Next.js 16 web app
+            with Kakao Maps integration and Supabase backend.
+
+            Tech stack: TypeScript 5.x strict, Next.js 16 App Router, React 19,
+            Tailwind CSS 4, Kakao Maps SDK, Supabase (Auth + Postgres with RLS).
+
+            Focus your review on:
+            - Type safety issues (strict mode violations, missing types, unsafe casts)
+            - React 19 patterns (proper use of hooks, server/client component boundaries)
+            - Supabase RLS implications (missing policies, data leak risks)
+            - Next.js App Router conventions (route handlers, metadata, loading/error states)
+            - Security (XSS, injection, exposed secrets, OWASP top 10)
+            - Performance (unnecessary re-renders, missing memoization, large bundles)
+
+            Be concise. Only flag real issues — skip style nits and trivial suggestions.
