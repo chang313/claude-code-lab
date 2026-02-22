@@ -152,6 +152,39 @@ describe("parseNaverBookmarks", () => {
     expect(result).toHaveLength(1);
     expect(result[0].address).toBe("");
   });
+
+  it("uses name field when displayName is empty (Naver API v3 format)", () => {
+    const response = {
+      bookmarkList: [
+        { name: "장모님해장국", displayName: "", px: 126.955676, py: 37.6089067, address: "서울 종로구" },
+      ],
+    };
+    const result = parseNaverBookmarks(response);
+    expect(result).toHaveLength(1);
+    expect(result[0].displayname).toBe("장모님해장국");
+  });
+
+  it("falls back to displayName when name is missing", () => {
+    const response = {
+      bookmarkList: [
+        { displayName: "카페A", px: 127.0, py: 37.5, address: "서울" },
+      ],
+    };
+    const result = parseNaverBookmarks(response);
+    expect(result).toHaveLength(1);
+    expect(result[0].displayname).toBe("카페A");
+  });
+
+  it("prefers name over displayname when both present", () => {
+    const response = {
+      bookmarkList: [
+        { name: "실제이름", displayname: "표시이름", px: 127.0, py: 37.5, address: "서울" },
+      ],
+    };
+    const result = parseNaverBookmarks(response);
+    expect(result).toHaveLength(1);
+    expect(result[0].displayname).toBe("실제이름");
+  });
 });
 
 // === T006: buildNaverApiUrl tests ===

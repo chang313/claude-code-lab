@@ -42,7 +42,12 @@ export async function POST(request: Request) {
   try {
     naverRes = await fetch(url, {
       signal: AbortSignal.timeout(30_000),
-      headers: { "User-Agent": "Mozilla/5.0" },
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Referer": "https://map.naver.com/",
+      },
     });
   } catch {
     return NextResponse.json(
@@ -99,8 +104,10 @@ export async function POST(request: Request) {
   }
 
   const bookmarks = parseNaverBookmarks(data);
+  const folder = resp.folder as Record<string, unknown> | undefined;
   const folderName =
-    typeof resp.folderName === "string" ? resp.folderName : null;
+    typeof resp.folderName === "string" ? resp.folderName :
+    (folder && typeof folder.name === "string") ? folder.name : null;
 
   return NextResponse.json({
     bookmarks: bookmarks.map((b) => ({
