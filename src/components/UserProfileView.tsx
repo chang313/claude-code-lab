@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useProfileWithCounts, useUserVisitedGrouped, useUserWishlistGrouped } from "@/db/profile-hooks";
 import ProfileHeader from "@/components/ProfileHeader";
 import CategoryAccordion from "@/components/CategoryAccordion";
@@ -115,9 +116,19 @@ export default function UserProfileView({
 
             {/* Wishlist Section */}
             <section>
-              <h3 className="text-base font-bold text-gray-800 mb-2">
-                위시 리스트 ({wishlistCount})
-              </h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-base font-bold text-gray-800">
+                  위시 리스트 ({wishlistCount})
+                </h3>
+                {isOwnProfile && (
+                  <Link
+                    href="/my/import"
+                    className="text-xs text-blue-500 font-medium"
+                  >
+                    네이버에서 가져오기
+                  </Link>
+                )}
+              </div>
               {wishlistCount === 0 ? (
                 <p className="text-sm text-gray-400 py-2">
                   위시 리스트가 비어있습니다
