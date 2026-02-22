@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { subscribe } from "./invalidate";
+import { subscribe, setCache, subscribeToCache } from "./invalidate";
 
 export function useSupabaseQuery<T>(
   key: string,
@@ -18,6 +18,7 @@ export function useSupabaseQuery<T>(
     try {
       const result = await queryFnRef.current();
       setData(result);
+      setCache(key, result);
     } finally {
       setIsLoading(false);
     }
@@ -30,6 +31,12 @@ export function useSupabaseQuery<T>(
   useEffect(() => {
     return subscribe(key, execute);
   }, [key, execute]);
+
+  useEffect(() => {
+    return subscribeToCache(key, (value) => {
+      setData(value as T);
+    });
+  }, [key]);
 
   return { data, isLoading };
 }

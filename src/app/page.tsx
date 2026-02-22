@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import RestaurantCard from "@/components/RestaurantCard";
 import CategoryAccordion from "@/components/CategoryAccordion";
 import RecommendModal from "@/components/RecommendModal";
+import Toast from "@/components/Toast";
 import {
   useVisitedGrouped,
   useWishlistGrouped,
@@ -16,14 +17,17 @@ import {
 import type { Restaurant } from "@/types";
 
 export default function WishlistPage() {
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const handleError = useCallback((msg: string) => setErrorMsg(msg), []);
+
   const { groups: visitedGroups, isLoading: visitedLoading } =
     useVisitedGrouped();
   const { groups: wishlistGroups, isLoading: wishlistLoading } =
     useWishlistGrouped();
-  const { removeRestaurant } = useRemoveRestaurant();
-  const { updateStarRating } = useUpdateStarRating();
-  const { markAsVisited } = useMarkAsVisited();
-  const { moveToWishlist } = useMoveToWishlist();
+  const { removeRestaurant } = useRemoveRestaurant(handleError);
+  const { updateStarRating } = useUpdateStarRating(handleError);
+  const { markAsVisited } = useMarkAsVisited(handleError);
+  const { moveToWishlist } = useMoveToWishlist(handleError);
   const router = useRouter();
   const [recommendTarget, setRecommendTarget] = useState<Restaurant | null>(
     null,
@@ -138,6 +142,14 @@ export default function WishlistPage() {
         <RecommendModal
           restaurant={recommendTarget}
           onClose={() => setRecommendTarget(null)}
+        />
+      )}
+
+      {errorMsg && (
+        <Toast
+          message={errorMsg}
+          type="error"
+          onDismiss={() => setErrorMsg(null)}
         />
       )}
     </div>

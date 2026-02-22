@@ -94,15 +94,21 @@ export function parseNaverBookmarks(response: unknown): NaverBookmark[] {
     if (!entry || typeof entry !== "object") continue;
     const e = entry as Record<string, unknown>;
 
-    const displayname = e.displayname;
-    if (typeof displayname !== "string" || !displayname.trim()) continue;
+    // API returns `name` (populated) and `displayName` (often empty).
+    // Prefer `name`, fall back to `displayName`/`displayname`.
+    const nameStr =
+      (typeof e.name === "string" && e.name.trim()) ||
+      (typeof e.displayName === "string" && (e.displayName as string).trim()) ||
+      (typeof e.displayname === "string" && (e.displayname as string).trim()) ||
+      "";
+    if (!nameStr) continue;
 
     const px = Number(e.px);
     const py = Number(e.py);
     if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
 
     valid.push({
-      displayname: displayname.trim(),
+      displayname: nameStr,
       name: typeof e.name === "string" ? e.name : undefined,
       px,
       py,

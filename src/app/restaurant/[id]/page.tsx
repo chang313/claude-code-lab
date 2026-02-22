@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   useRestaurant,
@@ -8,6 +8,7 @@ import {
   useRemoveRestaurant,
 } from "@/db/hooks";
 import StarRating from "@/components/StarRating";
+import Toast from "@/components/Toast";
 
 export default function RestaurantDetailPage({
   params,
@@ -18,9 +19,11 @@ export default function RestaurantDetailPage({
   const router = useRouter();
   const searchParams = useSearchParams();
   const readOnly = searchParams.get("readOnly") === "true";
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const handleError = useCallback((msg: string) => setErrorMsg(msg), []);
   const { restaurant, isLoading } = useRestaurant(id);
-  const { updateStarRating } = useUpdateStarRating();
-  const { removeRestaurant } = useRemoveRestaurant();
+  const { updateStarRating } = useUpdateStarRating(handleError);
+  const { removeRestaurant } = useRemoveRestaurant(handleError);
 
   if (isLoading) {
     return (
@@ -90,6 +93,14 @@ export default function RestaurantDetailPage({
         >
           맛집에서 삭제
         </button>
+      )}
+
+      {errorMsg && (
+        <Toast
+          message={errorMsg}
+          type="error"
+          onDismiss={() => setErrorMsg(null)}
+        />
       )}
     </div>
   );
