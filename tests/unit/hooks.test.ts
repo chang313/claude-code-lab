@@ -60,11 +60,15 @@ vi.mock("@/lib/supabase/client", () => ({
 }));
 
 const invalidateCalls: string[] = [];
+const cacheStore = new Map<string, unknown>();
 vi.mock("@/lib/supabase/invalidate", () => ({
   invalidate: (key: string) => invalidateCalls.push(key),
   invalidateByPrefix: (prefix: string) => invalidateCalls.push(`prefix:${prefix}`),
   subscribe: () => () => {},
   invalidateAll: () => {},
+  getCache: (key: string) => cacheStore.get(key),
+  setCache: (key: string, value: unknown) => cacheStore.set(key, value),
+  subscribeToCache: () => () => {},
 }));
 
 vi.mock("@/lib/supabase/use-query", () => ({
@@ -77,6 +81,7 @@ vi.mock("@/lib/subcategory", () => ({
 
 import {
   useAddRestaurant,
+  useUpdateStarRating,
   useMarkAsVisited,
   useMoveToWishlist,
 } from "@/db/hooks";
@@ -173,6 +178,81 @@ describe("useMarkAsVisited", () => {
 
     expect(updateCalls).toHaveLength(1);
     expect(updateCalls[0].data).toEqual({ star_rating: 5 });
+  });
+});
+
+describe("useUpdateStarRating", () => {
+  it("T008a: sends star_rating: 4 to the database", async () => {
+    const { result } = renderHook(() => useUpdateStarRating());
+
+    await act(async () => {
+      await result.current.updateStarRating("kakao-456", 4);
+    });
+
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0].table).toBe("restaurants");
+    expect(updateCalls[0].data).toEqual({ star_rating: 4 });
+  });
+
+  it("T008b: sends star_rating: 5 to the database", async () => {
+    const { result } = renderHook(() => useUpdateStarRating());
+
+    await act(async () => {
+      await result.current.updateStarRating("kakao-456", 5);
+    });
+
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0].data).toEqual({ star_rating: 5 });
+  });
+
+  it("T010: returns error info when server rejects update", async () => {
+    mockUpdateResult = { error: { message: "check constraint violated", code: "23514" } };
+    const { result } = renderHook(() => useUpdateStarRating());
+
+    let updateResult: { success: boolean; error?: string } = { success: true };
+    await act(async () => {
+      updateResult = await result.current.updateStarRating("kakao-456", 4);
+    });
+
+    expect(updateResult.success).toBe(false);
+    expect(updateResult.error).toBeDefined();
+  });
+});
+
+describe("useMarkAsVisited (star rating 4/5)", () => {
+  it("T009a: sends star_rating: 4 when promoting from wishlist", async () => {
+    const { result } = renderHook(() => useMarkAsVisited());
+
+    await act(async () => {
+      await result.current.markAsVisited("kakao-456", 4);
+    });
+
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0].data).toEqual({ star_rating: 4 });
+  });
+
+  it("T009b: sends star_rating: 5 when promoting from wishlist", async () => {
+    const { result } = renderHook(() => useMarkAsVisited());
+
+    await act(async () => {
+      await result.current.markAsVisited("kakao-456", 5);
+    });
+
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0].data).toEqual({ star_rating: 5 });
+  });
+
+  it("T011: returns error info when server rejects promotion", async () => {
+    mockUpdateResult = { error: { message: "constraint violation", code: "23514" } };
+    const { result } = renderHook(() => useMarkAsVisited());
+
+    let updateResult: { success: boolean; error?: string } = { success: true };
+    await act(async () => {
+      updateResult = await result.current.markAsVisited("kakao-456", 4);
+    });
+
+    expect(updateResult.success).toBe(false);
+    expect(updateResult.error).toBeDefined();
   });
 });
 
