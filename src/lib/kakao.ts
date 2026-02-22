@@ -92,36 +92,55 @@ function deduplicateAndSort(places: KakaoPlace[]): KakaoPlace[] {
   return merged.slice(0, MAX_RESULTS);
 }
 
-export async function smartSearch(params: {
-  query: string;
-  x?: string;
-  y?: string;
-  radius?: number;
-}): Promise<KakaoPlace[]> {
-  const terms = getExpandedTerms(params.query);
-  const hasLocation = !!(params.x && params.y);
-
+async function searchAllTerms(
+  terms: string[],
+  baseParams: Omit<Parameters<typeof paginatedSearch>[0], "query">,
+): Promise<KakaoPlace[]> {
   const results = await Promise.allSettled(
-    terms.map((term) =>
-      paginatedSearch({
-        query: term,
-        ...(hasLocation && {
-          x: params.x,
-          y: params.y,
-          radius: params.radius ?? DEFAULT_RADIUS,
-          sort: "accuracy" as const,
-        }),
-      }),
-    ),
+    terms.map((term) => paginatedSearch({ query: term, ...baseParams })),
   );
-
   const all: KakaoPlace[] = [];
   for (const result of results) {
     if (result.status !== "fulfilled") continue;
     all.push(...result.value);
   }
+  return all;
+}
 
-  return deduplicateAndSort(all);
+// Minimum local results to consider local search sufficient.
+// Below this threshold, smartSearch falls back to a nationwide search.
+export const LOCAL_MIN_RESULTS = 5;
+
+export async function smartSearch(params: {
+  query: string;
+  x?: string;
+  y?: string;
+}): Promise<KakaoPlace[]> {
+  const terms = getExpandedTerms(params.query);
+  const hasLocation = !!(params.x && params.y);
+
+  if (hasLocation) {
+    const localResults = await searchAllTerms(terms, {
+      x: params.x,
+      y: params.y,
+      radius: DEFAULT_RADIUS,
+      sort: "accuracy" as const,
+    });
+
+    if (localResults.length >= LOCAL_MIN_RESULTS) {
+      return deduplicateAndSort(localResults);
+    }
+
+    const globalResults = await searchAllTerms(terms, {
+      x: params.x,
+      y: params.y,
+      sort: "accuracy" as const,
+    });
+    return deduplicateAndSort(globalResults);
+  }
+
+  const results = await searchAllTerms(terms, {});
+  return deduplicateAndSort(results);
 }
 
 export async function viewportSearch(params: {
@@ -133,25 +152,14 @@ export async function viewportSearch(params: {
   const rect = boundsToRect(params.bounds);
   const hasLocation = !!params.userLocation;
 
-  const results = await Promise.allSettled(
-    terms.map((term) =>
-      paginatedSearch({
-        query: term,
-        rect,
-        ...(hasLocation && {
-          x: String(params.userLocation!.lng),
-          y: String(params.userLocation!.lat),
-          sort: "accuracy" as const,
-        }),
-      }),
-    ),
-  );
+  const results = await searchAllTerms(terms, {
+    rect,
+    ...(hasLocation && {
+      x: String(params.userLocation!.lng),
+      y: String(params.userLocation!.lat),
+      sort: "accuracy" as const,
+    }),
+  });
 
-  const all: KakaoPlace[] = [];
-  for (const result of results) {
-    if (result.status !== "fulfilled") continue;
-    all.push(...result.value);
-  }
-
-  return deduplicateAndSort(all);
+  return deduplicateAndSort(results);
 }
