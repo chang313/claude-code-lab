@@ -6,7 +6,7 @@ import MapView from "@/components/MapView";
 import BottomSheet from "@/components/BottomSheet";
 import RestaurantCard from "@/components/RestaurantCard";
 import SearchThisAreaButton from "@/components/SearchThisAreaButton";
-import ErrorToast from "@/components/ErrorToast";
+import Toast from "@/components/Toast";
 import { smartSearch, viewportSearch, boundsEqual } from "@/lib/kakao";
 import { formatDistance } from "@/lib/format-distance";
 import { useAddRestaurant } from "@/db/hooks";
@@ -29,6 +29,9 @@ export default function SearchPage() {
   const [lastSearchedBounds, setLastSearchedBounds] = useState<Bounds | null>(null);
   const [isViewportLoading, setIsViewportLoading] = useState(false);
   const [viewportError, setViewportError] = useState<string | null>(null);
+
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [addingId, setAddingId] = useState<string | null>(null);
 
   const { addRestaurant } = useAddRestaurant();
   const statusMap = useRestaurantStatusMap(results.map((r) => r.id));
@@ -121,14 +124,30 @@ export default function SearchPage() {
 
   // Add to wishlist (default, star_rating = null)
   const handleAddToWishlist = async (place: KakaoPlace) => {
-    await addRestaurant(place);
-    setSelectedPlace(null);
+    setAddingId(place.id);
+    try {
+      const added = await addRestaurant(place);
+      if (added) setToast({ message: "목록에 추가했어요", type: "success" });
+    } catch {
+      setToast({ message: "저장에 실패했어요. 다시 시도해주세요.", type: "error" });
+    } finally {
+      setAddingId(null);
+      setSelectedPlace(null);
+    }
   };
 
   // Add as visited (star_rating = rating)
   const handleAddAsVisited = async (place: KakaoPlace, rating: 1 | 2 | 3 | 4 | 5) => {
-    await addRestaurant(place, rating);
-    setSelectedPlace(null);
+    setAddingId(place.id);
+    try {
+      const added = await addRestaurant(place, rating);
+      if (added) setToast({ message: "목록에 추가했어요", type: "success" });
+    } catch {
+      setToast({ message: "저장에 실패했어요. 다시 시도해주세요.", type: "error" });
+    } finally {
+      setAddingId(null);
+      setSelectedPlace(null);
+    }
   };
 
   // Map markers
@@ -166,6 +185,7 @@ export default function SearchPage() {
         variant="search-result"
         distance={formatDistance(place.distance)}
         savedStatus={status}
+        isAdding={addingId === place.id}
         onAddToWishlist={() => handleAddToWishlist(place)}
         onAddAsVisited={(rating) => handleAddAsVisited(place, rating)}
       />
@@ -196,9 +216,18 @@ export default function SearchPage() {
       />
 
       {viewportError && (
-        <ErrorToast
+        <Toast
           message={viewportError}
+          type="error"
           onDismiss={() => setViewportError(null)}
+        />
+      )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onDismiss={() => setToast(null)}
         />
       )}
 
