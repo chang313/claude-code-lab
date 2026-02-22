@@ -53,9 +53,16 @@ export function useWishlist() {
   const { data, isLoading } = useSupabaseQuery<Restaurant[]>(
     RESTAURANTS_KEY,
     async () => {
-      const { data, error } = await getSupabase()
+      const supabase = getSupabase();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
         .from("restaurants")
         .select("*")
+        .eq("user_id", user.id)
         .order("star_rating", { ascending: false })
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -69,9 +76,16 @@ export function useVisitedGrouped() {
   const { data, isLoading } = useSupabaseQuery<SubcategoryGroup[]>(
     VISITED_KEY,
     async () => {
-      const { data, error } = await getSupabase()
+      const supabase = getSupabase();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
         .from("restaurants")
         .select("*")
+        .eq("user_id", user.id)
         .not("star_rating", "is", null)
         .order("star_rating", { ascending: false })
         .order("created_at", { ascending: false });
@@ -87,9 +101,16 @@ export function useWishlistGrouped() {
   const { data, isLoading } = useSupabaseQuery<SubcategoryGroup[]>(
     WISHLIST_KEY,
     async () => {
-      const { data, error } = await getSupabase()
+      const supabase = getSupabase();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
         .from("restaurants")
         .select("*")
+        .eq("user_id", user.id)
         .is("star_rating", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -104,9 +125,16 @@ export function useRestaurant(kakaoPlaceId: string) {
   const { data, isLoading } = useSupabaseQuery<Restaurant | null>(
     `${RESTAURANTS_KEY}:${kakaoPlaceId}`,
     async () => {
-      const { data, error } = await getSupabase()
+      const supabase = getSupabase();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data, error } = await supabase
         .from("restaurants")
         .select("*")
+        .eq("user_id", user.id)
         .eq("kakao_place_id", kakaoPlaceId)
         .maybeSingle();
       if (error) throw error;
@@ -216,9 +244,16 @@ export function useIsWishlisted(kakaoPlaceId: string): boolean {
   const { data } = useSupabaseQuery<boolean>(
     `wishlisted:${kakaoPlaceId}`,
     async () => {
-      const { count, error } = await getSupabase()
+      const supabase = getSupabase();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return false;
+
+      const { count, error } = await supabase
         .from("restaurants")
         .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
         .eq("kakao_place_id", kakaoPlaceId);
       if (error) throw error;
       return (count ?? 0) > 0;
