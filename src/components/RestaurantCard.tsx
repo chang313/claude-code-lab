@@ -66,11 +66,18 @@ export default function RestaurantCard({
       </div>
 
       <div className="flex items-center justify-between mt-3">
-        {/* Visited cards: filled editable stars */}
+        {/* Visited cards: editable stars if handler provided, readonly otherwise */}
         {variant === "visited" && onStarChange && (
           <StarRating
             value={restaurant.starRating as 1 | 2 | 3}
             onChange={onStarChange}
+            size="sm"
+          />
+        )}
+        {variant === "visited" && !onStarChange && restaurant.starRating != null && (
+          <StarRating
+            value={restaurant.starRating as 1 | 2 | 3}
+            readonly
             size="sm"
           />
         )}
