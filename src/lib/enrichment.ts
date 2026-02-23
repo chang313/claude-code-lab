@@ -1,13 +1,24 @@
-import { searchByKeyword } from "@/lib/kakao";
+import { searchByKeyword, searchByCategory } from "@/lib/kakao";
 import { haversineDistance } from "@/lib/haversine";
 import type { KakaoPlace } from "@/types";
 
-const MATCH_RADIUS_M = 100;
+const MATCH_RADIUS_M = 300;
+const FALLBACK_RADIUS_M = 50;
 const THROTTLE_MS = 100;
 
-/** Normalize a name for comparison: strip whitespace, lowercase. */
+/** Strip common Korean business suffixes (역점, 지점, 본점, 직영점, or location+점). */
+export function stripSuffix(name: string): string {
+  // Try known multi-char suffixes first (most specific)
+  const known = /(?:직영점|역점|지점|본점)$/;
+  if (known.test(name)) return name.replace(known, "");
+  // Generic: 1-4 Korean Hangul characters + 점
+  return name.replace(/[\uAC00-\uD7A3]{1,4}점$/, "");
+}
+
+/** Normalize a name for comparison: strip whitespace, lowercase, strip Korean suffixes. */
 export function normalizeName(name: string): string {
-  return name.replace(/\s+/g, "").toLowerCase();
+  const base = name.replace(/\s+/g, "").toLowerCase();
+  return stripSuffix(base);
 }
 
 /** Check if two names are a substring match (either contains the other). */
@@ -59,6 +70,50 @@ export async function findKakaoMatch(
   }
 }
 
+/**
+ * Coordinate-based category fallback: find the nearest food establishment
+ * by coordinates and return its category. Tries FD6 (음식점) first, then CE7 (카페).
+ * Returns category_name string or null.
+ */
+export async function findCategoryByCoordinates(
+  lat: number,
+  lng: number,
+): Promise<string | null> {
+  try {
+    // Try FD6 (음식점) first
+    const fd6 = await searchByCategory({
+      categoryGroupCode: "FD6",
+      x: String(lng),
+      y: String(lat),
+      radius: FALLBACK_RADIUS_M,
+      sort: "distance",
+      size: 5,
+    });
+
+    if (fd6.documents.length > 0) {
+      return fd6.documents[0].category_name;
+    }
+
+    // Fallback to CE7 (카페)
+    const ce7 = await searchByCategory({
+      categoryGroupCode: "CE7",
+      x: String(lng),
+      y: String(lat),
+      radius: FALLBACK_RADIUS_M,
+      sort: "distance",
+      size: 5,
+    });
+
+    if (ce7.documents.length > 0) {
+      return ce7.documents[0].category_name;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -68,15 +123,17 @@ function sleep(ms: number): Promise<void> {
  * Updates DB directly for each matched restaurant.
  */
 export async function enrichBatch(
-  batchId: string,
+  batchId: string | null,
   restaurants: Array<{
     kakao_place_id: string;
     name: string;
     lat: number;
     lng: number;
+    category?: string;
   }>,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: { from: (table: string) => any },
+  userId?: string,
 ): Promise<{ enrichedCount: number; failedCount: number }> {
   let enrichedCount = 0;
   let failedCount = 0;
@@ -84,6 +141,9 @@ export async function enrichBatch(
   for (const restaurant of restaurants) {
     // Skip already-enriched (non-synthetic kakao_place_id)
     if (!restaurant.kakao_place_id.startsWith("naver_")) continue;
+
+    // Skip restaurants that already have a category (idempotent re-enrichment)
+    if (restaurant.category) continue;
 
     try {
       const match = await findKakaoMatch(
@@ -93,7 +153,8 @@ export async function enrichBatch(
       );
 
       if (match) {
-        await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let query: any = supabase
           .from("restaurants")
           .update({
             kakao_place_id: match.id,
@@ -102,7 +163,27 @@ export async function enrichBatch(
           })
           .eq("kakao_place_id", restaurant.kakao_place_id);
 
+        if (userId) query = query.eq("user_id", userId);
+        await query;
+
         enrichedCount++;
+      } else {
+        // Coordinate-based fallback: update category only (preserve kakao_place_id and place_url)
+        const fallbackCategory = await findCategoryByCoordinates(
+          restaurant.lat,
+          restaurant.lng,
+        );
+
+        if (fallbackCategory) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          let query: any = supabase
+            .from("restaurants")
+            .update({ category: fallbackCategory })
+            .eq("kakao_place_id", restaurant.kakao_place_id);
+
+          if (userId) query = query.eq("user_id", userId);
+          await query;
+        }
       }
     } catch {
       failedCount++;
@@ -111,15 +192,26 @@ export async function enrichBatch(
     await sleep(THROTTLE_MS);
   }
 
-  // Update batch enrichment status
-  const status = failedCount > 0 && enrichedCount === 0 ? "failed" : "completed";
-  await supabase
-    .from("import_batches")
-    .update({
-      enrichment_status: status,
-      enriched_count: enrichedCount,
-    })
-    .eq("id", batchId);
+  // Update batch enrichment status (skip for retroactive re-enrichment with no batch)
+  if (batchId) {
+    // Count how many restaurants in this batch now have a category
+    const { count: categorizedCount } = await supabase
+      .from("restaurants")
+      .select("*", { count: "exact", head: true })
+      .eq("import_batch_id", batchId)
+      .neq("category", "");
+
+    const status =
+      failedCount > 0 && enrichedCount === 0 ? "failed" : "completed";
+    await supabase
+      .from("import_batches")
+      .update({
+        enrichment_status: status,
+        enriched_count: enrichedCount,
+        categorized_count: categorizedCount ?? 0,
+      })
+      .eq("id", batchId);
+  }
 
   return { enrichedCount, failedCount };
 }

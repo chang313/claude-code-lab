@@ -17,7 +17,7 @@ export async function GET() {
   const { data: batches, error } = await supabase
     .from("import_batches")
     .select(
-      "id, source_name, imported_count, skipped_count, invalid_count, enrichment_status, enriched_count, created_at",
+      "id, source_name, imported_count, skipped_count, invalid_count, enrichment_status, enriched_count, categorized_count, created_at",
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
@@ -38,6 +38,7 @@ export async function GET() {
       invalidCount: b.invalid_count,
       enrichmentStatus: b.enrichment_status,
       enrichedCount: b.enriched_count,
+      categorizedCount: b.categorized_count,
       createdAt: b.created_at,
     })),
   });
