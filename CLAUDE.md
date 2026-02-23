@@ -27,4 +27,4 @@ Project rules are in `.claude/rules/`:
 
 ## Feature History
 
-See [CHANGELOG.md](CHANGELOG.md) for the full feature history (001–024).
+See [CHANGELOG.md](CHANGELOG.md) for the full feature history (001–026).
