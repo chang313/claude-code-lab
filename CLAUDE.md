@@ -24,7 +24,12 @@ Project rules are in `.claude/rules/`:
 ## Active Technologies
 - TypeScript 5.x (strict mode) + Next.js 16 (App Router), React 19, Tailwind CSS 4, Kakao Maps SDK, Kakao Local REST API, Supabase (Auth + Postgres), @supabase/ssr
 - Supabase Kakao OAuth for authentication, Supabase Postgres with RLS for cloud-synced data
+- TypeScript 5.x (strict mode) + Next.js 16 (App Router), React 19, Kakao Maps SDK (028-adjust-map-icons)
+- N/A (no data model changes) (028-adjust-map-icons)
 
 ## Feature History
 
 See [CHANGELOG.md](CHANGELOG.md) for the full feature history (001–024).
+
+## Recent Changes
+- 028-adjust-map-icons: Added TypeScript 5.x (strict mode) + Next.js 16 (App Router), React 19, Kakao Maps SDK

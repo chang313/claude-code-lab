@@ -34,7 +34,8 @@ declare global {
         LatLng: new (lat: number, lng: number) => unknown;
         LatLngBounds: new () => KakaoLatLngBounds;
         Marker: new (options: { map: KakaoMap; position: unknown; image?: KakaoMarkerImage }) => KakaoMarker;
-        MarkerImage: new (src: string, size: KakaoSize) => KakaoMarkerImage;
+        MarkerImage: new (src: string, size: KakaoSize, options?: { offset: KakaoPoint }) => KakaoMarkerImage;
+        Point: new (x: number, y: number) => KakaoPoint;
         Size: new (width: number, height: number) => KakaoSize;
         InfoWindow: new (options: { content: string }) => KakaoInfoWindow;
         event: {
@@ -74,30 +75,34 @@ interface KakaoSize {
   _brand: "KakaoSize";
 }
 
+interface KakaoPoint {
+  _brand: "KakaoPoint";
+}
+
 interface KakaoInfoWindow {
   open: (map: KakaoMap, marker: KakaoMarker) => void;
   close: () => void;
 }
 
-// SVG marker icons as data URIs (ASCII-only for btoa() compat)
-// Heart path for wishlist, star path for visited, circle for search
+// Circular SVG marker icons as data URIs (20x20px, ASCII-only for btoa() compat)
+// Red dot for search, blue heart for wishlist, orange star for visited
 const MARKER_SVGS: Record<MarkerType, string> = {
   search: [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">',
-    '<path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.27 21.73 0 14 0z" fill="#E74C3C"/>',
-    '<circle cx="14" cy="14" r="5" fill="white"/>',
+    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">',
+    '<circle cx="10" cy="10" r="9" fill="#E74C3C"/>',
+    '<circle cx="10" cy="10" r="3" fill="white"/>',
     "</svg>",
   ].join(""),
   wishlist: [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">',
-    '<path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.27 21.73 0 14 0z" fill="#3498DB"/>',
-    '<path d="M14 8c-1.5-2-4.5-2.5-6 0s-1 5.5 6 10c7-4.5 7.5-7.5 6-10s-4.5-2-6 0z" fill="white"/>',
+    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">',
+    '<circle cx="10" cy="10" r="9" fill="#3498DB"/>',
+    '<path d="M10 7c-1-1.4-3-1.7-4 0s-.7 3.7 4 6.7c4.7-3 5-5 4-6.7s-3-1.4-4 0z" fill="white"/>',
     "</svg>",
   ].join(""),
   visited: [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">',
-    '<path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.27 21.73 0 14 0z" fill="#F39C12"/>',
-    '<path d="M14 6l2 4 4.5.7-3.2 3.1.8 4.5L14 16.1l-4.1 2.2.8-4.5L7.5 10.7 12 10z" fill="white"/>',
+    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">',
+    '<circle cx="10" cy="10" r="9" fill="#F39C12"/>',
+    '<path d="M10 5l1.5 3 3.2.5-2.3 2.2.5 3.3L10 12.2 7.1 14l.5-3.3L5.3 8.5 8.5 8z" fill="white"/>',
     "</svg>",
   ].join(""),
 };
@@ -199,7 +204,8 @@ export default function MapView({
       const position = new window.kakao.maps.LatLng(m.lat, m.lng);
       const markerImage = new window.kakao.maps.MarkerImage(
         getMarkerIconSrc(m.markerType),
-        new window.kakao.maps.Size(28, 40),
+        new window.kakao.maps.Size(20, 20),
+        { offset: new window.kakao.maps.Point(10, 10) },
       );
       const marker = new window.kakao.maps.Marker({ map, position, image: markerImage });
       markerRefs.current.push(marker);
