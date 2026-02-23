@@ -53,10 +53,10 @@ export async function POST(request: Request) {
     .update({ enrichment_status: "running" })
     .eq("id", batchId);
 
-  // Query restaurants with synthetic kakao_place_id for this batch
+  // Query restaurants with synthetic kakao_place_id for this batch (include category for idempotent skip)
   const { data: restaurants } = await supabase
     .from("restaurants")
-    .select("kakao_place_id, name, lat, lng")
+    .select("kakao_place_id, name, lat, lng, category")
     .eq("import_batch_id", batchId)
     .like("kakao_place_id", "naver_%");
 
@@ -64,8 +64,9 @@ export async function POST(request: Request) {
   if (restaurants && restaurants.length > 0) {
     enrichBatch(
       batchId,
-      restaurants as Array<{ kakao_place_id: string; name: string; lat: number; lng: number }>,
+      restaurants as Array<{ kakao_place_id: string; name: string; lat: number; lng: number; category: string }>,
       supabase,
+      user.id,
     ).catch(async () => {
       // If enrichment fails entirely, mark batch as failed
       await supabase

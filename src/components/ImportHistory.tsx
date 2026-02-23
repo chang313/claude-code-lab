@@ -5,6 +5,7 @@ import {
   useImportHistory,
   useUndoImport,
   useRetriggerEnrichment,
+  useRetroactiveEnrich,
 } from "@/db/import-hooks";
 
 const STATUS_LABELS: Record<string, { text: string; color: string }> = {
@@ -18,6 +19,7 @@ export default function ImportHistory() {
   const { batches, isLoading, fetchHistory } = useImportHistory();
   const { undoImport } = useUndoImport();
   const { retriggerEnrichment } = useRetriggerEnrichment();
+  const { retroactiveEnrich, isEnriching } = useRetroactiveEnrich();
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,9 +51,23 @@ export default function ImportHistory() {
     fetchHistory();
   };
 
+  const handleRetroactiveEnrich = async () => {
+    await retroactiveEnrich();
+    fetchHistory();
+  };
+
   return (
     <div className="space-y-3">
-      <h2 className="text-sm font-bold text-gray-700">가져오기 기록</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-bold text-gray-700">가져오기 기록</h2>
+        <button
+          onClick={handleRetroactiveEnrich}
+          disabled={isEnriching}
+          className="text-xs font-medium text-blue-500 disabled:text-gray-400"
+        >
+          {isEnriching ? "매칭 중..." : "전체 카테고리 다시 매칭"}
+        </button>
+      </div>
       {batches.map((batch) => {
         const status = STATUS_LABELS[batch.enrichmentStatus] ?? STATUS_LABELS.pending;
         const date = new Date(batch.createdAt).toLocaleDateString("ko-KR", {
@@ -81,8 +97,8 @@ export default function ImportHistory() {
             <div className="text-xs text-gray-500">
               가져온 {batch.importedCount}개
               {batch.skippedCount > 0 && ` · 중복 ${batch.skippedCount}개`}
-              {batch.enrichedCount > 0 &&
-                ` · 카테고리 ${batch.enrichedCount}개`}
+              {batch.enrichmentStatus === "completed" &&
+                ` · 카테고리 ${batch.categorizedCount}/${batch.importedCount}`}
             </div>
 
             <div className="flex gap-2">

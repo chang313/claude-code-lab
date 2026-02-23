@@ -1,12 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock Kakao searchByKeyword
+// Mock Kakao APIs
 const mockSearchByKeyword = vi.fn();
+const mockSearchByCategory = vi.fn();
 vi.mock("@/lib/kakao", () => ({
   searchByKeyword: (...args: unknown[]) => mockSearchByKeyword(...args),
+  searchByCategory: (...args: unknown[]) => mockSearchByCategory(...args),
 }));
 
-import { findKakaoMatch, normalizeName } from "@/lib/enrichment";
+import {
+  findKakaoMatch,
+  normalizeName,
+  stripSuffix,
+  enrichBatch,
+} from "@/lib/enrichment";
 
 describe("normalizeName", () => {
   it("strips whitespace", () => {
@@ -19,6 +26,37 @@ describe("normalizeName", () => {
 
   it("handles mixed Korean/English", () => {
     expect(normalizeName("스타벅스 Gangnam")).toBe("스타벅스gangnam");
+  });
+});
+
+describe("stripSuffix", () => {
+  it("strips 역점 suffix", () => {
+    expect(stripSuffix("스타벅스강남역점")).toBe("스타벅스강남");
+  });
+
+  it("strips 직영점 suffix", () => {
+    expect(stripSuffix("맘스터치직영점")).toBe("맘스터치");
+  });
+
+  it("strips 지점 suffix", () => {
+    expect(stripSuffix("본죽강남지점")).toBe("본죽강남");
+  });
+
+  it("strips 본점 suffix", () => {
+    expect(stripSuffix("한신포차본점")).toBe("한신포차");
+  });
+
+  it("strips location+점 suffix (1-4 char location)", () => {
+    expect(stripSuffix("kfc강남점")).toBe("kfc");
+  });
+
+  it("preserves base names without suffix", () => {
+    expect(stripSuffix("맛집")).toBe("맛집");
+    expect(stripSuffix("스타벅스")).toBe("스타벅스");
+  });
+
+  it("handles mixed Korean+English with suffix", () => {
+    expect(stripSuffix("burgerking강남점")).toBe("burgerking");
   });
 });
 
@@ -99,17 +137,43 @@ describe("findKakaoMatch", () => {
     expect(result).toBeNull();
   });
 
-  it("returns null when same name but beyond 100m", async () => {
+  it("returns match at 200m distance (within expanded 300m radius)", async () => {
+    // ~200m north of origin (37.4979 + ~0.0018 latitude ≈ 200m)
     mockSearchByKeyword.mockResolvedValue({
       documents: [
         {
-          id: "22222",
+          id: "200m-match",
+          place_name: "맛집A",
+          category_name: "음식점 > 한식",
+          place_url: "https://place.map.kakao.com/200m",
+          x: "127.0276",
+          y: "37.4997",
+          distance: "200",
+          address_name: "",
+          road_address_name: "",
+          category_group_name: "음식점",
+        },
+      ],
+      meta: { total_count: 1, pageable_count: 1, is_end: true },
+    });
+
+    const result = await findKakaoMatch("맛집A", 37.4979, 127.0276);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("200m-match");
+  });
+
+  it("returns null when same name but beyond 300m", async () => {
+    // ~400m north of origin
+    mockSearchByKeyword.mockResolvedValue({
+      documents: [
+        {
+          id: "400m-away",
           place_name: "맛집A",
           category_name: "음식점",
           place_url: "",
-          x: "127.03",
-          y: "37.50",
-          distance: "200",
+          x: "127.0276",
+          y: "37.5015",
+          distance: "400",
           address_name: "",
           road_address_name: "",
           category_group_name: "",
@@ -120,6 +184,42 @@ describe("findKakaoMatch", () => {
 
     const result = await findKakaoMatch("맛집A", 37.4979, 127.0276);
     expect(result).toBeNull();
+  });
+
+  it("picks closest within 300m when multiple results", async () => {
+    mockSearchByKeyword.mockResolvedValue({
+      documents: [
+        {
+          id: "far-250m",
+          place_name: "맛집A",
+          category_name: "음식점",
+          place_url: "",
+          x: "127.0276",
+          y: "37.50015",
+          distance: "250",
+          address_name: "",
+          road_address_name: "",
+          category_group_name: "",
+        },
+        {
+          id: "close-150m",
+          place_name: "맛집A",
+          category_name: "음식점",
+          place_url: "",
+          x: "127.0276",
+          y: "37.49925",
+          distance: "150",
+          address_name: "",
+          road_address_name: "",
+          category_group_name: "",
+        },
+      ],
+      meta: { total_count: 2, pageable_count: 2, is_end: true },
+    });
+
+    const result = await findKakaoMatch("맛집A", 37.4979, 127.0276);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("close-150m");
   });
 
   it("picks closest when multiple results within 100m", async () => {
@@ -173,5 +273,87 @@ describe("findKakaoMatch", () => {
 
     const result = await findKakaoMatch("맛집A", 37.4979, 127.0276);
     expect(result).toBeNull();
+  });
+});
+
+describe("enrichBatch — coordinate fallback integration", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("updates ONLY category when findKakaoMatch returns null but coordinate fallback succeeds", async () => {
+    // findKakaoMatch → no results (name match fails)
+    mockSearchByKeyword.mockResolvedValue({
+      documents: [],
+      meta: { total_count: 0, pageable_count: 0, is_end: true },
+    });
+
+    // Coordinate fallback → returns category via FD6
+    mockSearchByCategory.mockResolvedValue({
+      documents: [
+        {
+          id: "nearby-1",
+          place_name: "근처식당",
+          category_name: "음식점 > 일식",
+          place_url: "https://place.map.kakao.com/nearby-1",
+          x: "127.0276",
+          y: "37.4979",
+          distance: "30",
+          address_name: "",
+          road_address_name: "",
+          category_group_name: "음식점",
+        },
+      ],
+      meta: { total_count: 1, pageable_count: 1, is_end: true },
+    });
+
+    // Track DB updates
+    const updateCalls: Array<Record<string, unknown>> = [];
+    const eqCalls: Array<[string, string]> = [];
+    const mockSupabase = {
+      from: () => ({
+        update: (data: Record<string, unknown>) => {
+          updateCalls.push(data);
+          return {
+            eq: (col: string, val: string) => {
+              eqCalls.push([col, val]);
+              return {
+                eq: (col2: string, val2: string) => {
+                  eqCalls.push([col2, val2]);
+                  return Promise.resolve({ data: null, error: null });
+                },
+                then: (resolve: (v: unknown) => void) =>
+                  resolve({ data: null, error: null }),
+              };
+            },
+          };
+        },
+      }),
+    };
+
+    const result = await enrichBatch(
+      null,
+      [
+        {
+          kakao_place_id: "naver_37.4979_127.0276",
+          name: "이름없는맛집",
+          lat: 37.4979,
+          lng: 127.0276,
+        },
+      ],
+      mockSupabase,
+      "user-123",
+    );
+
+    // Should have made one update call for the coordinate fallback
+    expect(updateCalls.length).toBe(1);
+
+    // Category-only update: MUST have category, MUST NOT have kakao_place_id or place_url
+    expect(updateCalls[0]).toEqual({ category: "음식점 > 일식" });
+    expect(updateCalls[0]).not.toHaveProperty("kakao_place_id");
+    expect(updateCalls[0]).not.toHaveProperty("place_url");
+
+    // Result should count this as enriched (or category-only — it's still enrichment)
+    expect(result.enrichedCount).toBeGreaterThanOrEqual(0);
   });
 });

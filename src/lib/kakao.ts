@@ -9,6 +9,30 @@ function getApiKey(): string {
   return key;
 }
 
+export async function searchByCategory(params: {
+  categoryGroupCode: string;
+  x: string;
+  y: string;
+  radius?: number;
+  sort?: "accuracy" | "distance";
+  size?: number;
+}): Promise<KakaoSearchResponse> {
+  const url = new URL(`${BASE_URL}/category`);
+  url.searchParams.set("category_group_code", params.categoryGroupCode);
+  url.searchParams.set("x", params.x);
+  url.searchParams.set("y", params.y);
+  if (params.radius != null) url.searchParams.set("radius", String(params.radius));
+  if (params.sort) url.searchParams.set("sort", params.sort);
+  if (params.size) url.searchParams.set("size", String(params.size));
+
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `KakaoAK ${getApiKey()}` },
+  });
+
+  if (!res.ok) throw new Error(`Kakao API error: ${res.status}`);
+  return res.json();
+}
+
 export async function searchByKeyword(params: {
   query: string;
   page?: number;

@@ -128,6 +128,7 @@ export interface ImportBatchSummary {
   invalidCount: number;
   enrichmentStatus: "pending" | "running" | "completed" | "failed";
   enrichedCount: number;
+  categorizedCount: number;
   createdAt: string;
 }
 
@@ -176,4 +177,33 @@ export function useRetriggerEnrichment() {
     return res.ok;
   };
   return { retriggerEnrichment };
+}
+
+export function useRetroactiveEnrich() {
+  const [isEnriching, setIsEnriching] = useState(false);
+
+  const retroactiveEnrich = async (): Promise<{
+    status: string;
+    restaurantCount: number;
+  } | null> => {
+    setIsEnriching(true);
+    try {
+      const res = await fetch("/api/import/re-enrich", {
+        method: "POST",
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data.status === "started") {
+        invalidateRestaurants();
+        invalidate(IMPORT_HISTORY_KEY);
+      }
+      return data;
+    } catch {
+      return null;
+    } finally {
+      setIsEnriching(false);
+    }
+  };
+
+  return { retroactiveEnrich, isEnriching };
 }
