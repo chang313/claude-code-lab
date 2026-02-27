@@ -3,6 +3,7 @@ import { haversineDistance } from "@/lib/haversine";
 import type { KakaoPlace } from "@/types";
 
 const MATCH_RADIUS_M = 300;
+const ADDRESS_MATCH_RADIUS_M = 500;
 const FALLBACK_RADIUS_M = 50;
 const THROTTLE_MS = 100;
 
@@ -26,6 +27,65 @@ function isNameMatch(naverName: string, kakaoName: string): boolean {
   const a = normalizeName(naverName);
   const b = normalizeName(kakaoName);
   return a.includes(b) || b.includes(a);
+}
+
+/** Normalize a Korean address for comparison: trim, collapse spaces, strip administrative suffixes. */
+export function normalizeAddress(address: string | undefined | null): string {
+  if (!address) return "";
+  return address
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/특별자치시|특별자치도|특별시|광역시/g, "");
+}
+
+/**
+ * Find a Kakao match for a Naver restaurant using road address + coordinates.
+ * Address matching is high-confidence (government-standardized), so wider 500m radius is safe.
+ * Returns the closest address-matching KakaoPlace, or null.
+ */
+export async function findKakaoMatchByAddress(
+  address: string | undefined | null,
+  lat: number,
+  lng: number,
+): Promise<KakaoPlace | null> {
+  const normalizedInput = normalizeAddress(address);
+  if (!normalizedInput) return null;
+
+  try {
+    const res = await searchByKeyword({
+      query: address!,
+      x: String(lng),
+      y: String(lat),
+      radius: ADDRESS_MATCH_RADIUS_M,
+      sort: "distance",
+      size: 15,
+    });
+
+    let best: KakaoPlace | null = null;
+    let bestDist = Infinity;
+
+    for (const doc of res.documents) {
+      const docLat = parseFloat(doc.y);
+      const docLng = parseFloat(doc.x);
+      const dist = haversineDistance(lat, lng, docLat, docLng);
+
+      if (dist > ADDRESS_MATCH_RADIUS_M) continue;
+
+      const normalizedRoad = normalizeAddress(doc.road_address_name);
+      const normalizedJibun = normalizeAddress(doc.address_name);
+
+      if (normalizedRoad !== normalizedInput && normalizedJibun !== normalizedInput) continue;
+
+      if (dist < bestDist) {
+        best = doc;
+        bestDist = dist;
+      }
+    }
+
+    return best;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -130,6 +190,7 @@ export async function enrichBatch(
     lat: number;
     lng: number;
     category?: string;
+    address?: string;
   }>,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: { from: (table: string) => any },
@@ -168,21 +229,45 @@ export async function enrichBatch(
 
         enrichedCount++;
       } else {
-        // Coordinate-based fallback: update category only (preserve kakao_place_id and place_url)
-        const fallbackCategory = await findCategoryByCoordinates(
+        // Tier 1.5: Road address matching (high confidence — updates all fields)
+        const addressMatch = await findKakaoMatchByAddress(
+          restaurant.address,
           restaurant.lat,
           restaurant.lng,
         );
 
-        if (fallbackCategory) {
+        if (addressMatch) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           let query: any = supabase
             .from("restaurants")
-            .update({ category: fallbackCategory })
+            .update({
+              kakao_place_id: addressMatch.id,
+              category: addressMatch.category_name,
+              place_url: addressMatch.place_url,
+            })
             .eq("kakao_place_id", restaurant.kakao_place_id);
 
           if (userId) query = query.eq("user_id", userId);
           await query;
+
+          enrichedCount++;
+        } else {
+          // Tier 2: Coordinate-based fallback — update category only (preserve kakao_place_id and place_url)
+          const fallbackCategory = await findCategoryByCoordinates(
+            restaurant.lat,
+            restaurant.lng,
+          );
+
+          if (fallbackCategory) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let query: any = supabase
+              .from("restaurants")
+              .update({ category: fallbackCategory })
+              .eq("kakao_place_id", restaurant.kakao_place_id);
+
+            if (userId) query = query.eq("user_id", userId);
+            await query;
+          }
         }
       }
     } catch {

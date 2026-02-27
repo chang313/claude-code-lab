@@ -10,6 +10,8 @@ vi.mock("@/lib/kakao", () => ({
 
 import {
   findKakaoMatch,
+  findKakaoMatchByAddress,
+  normalizeAddress,
   normalizeName,
   stripSuffix,
   enrichBatch,
@@ -355,5 +357,229 @@ describe("enrichBatch — coordinate fallback integration", () => {
 
     // Result should count this as enriched (or category-only — it's still enrichment)
     expect(result.enrichedCount).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("normalizeAddress", () => {
+  it("strips 특별시 suffix", () => {
+    expect(normalizeAddress("서울특별시 강남구 테헤란로 123")).toBe(
+      "서울 강남구 테헤란로 123",
+    );
+  });
+
+  it("strips 광역시 suffix", () => {
+    expect(normalizeAddress("부산광역시 해운대구 해운대로 456")).toBe(
+      "부산 해운대구 해운대로 456",
+    );
+  });
+
+  it("strips 특별자치시 suffix", () => {
+    expect(normalizeAddress("세종특별자치시 어진동 123")).toBe(
+      "세종 어진동 123",
+    );
+  });
+
+  it("strips 특별자치도 suffix", () => {
+    expect(normalizeAddress("제주특별자치도 제주시 연동 789")).toBe(
+      "제주 제주시 연동 789",
+    );
+  });
+
+  it("normalizes whitespace", () => {
+    expect(normalizeAddress("  서울특별시  강남구   테헤란로  123  ")).toBe(
+      "서울 강남구 테헤란로 123",
+    );
+  });
+
+  it("returns empty string for falsy input", () => {
+    expect(normalizeAddress("")).toBe("");
+    expect(normalizeAddress(null)).toBe("");
+    expect(normalizeAddress(undefined)).toBe("");
+  });
+});
+
+describe("findKakaoMatchByAddress", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns match when road address matches exactly within 500m", async () => {
+    mockSearchByKeyword.mockResolvedValue({
+      documents: [
+        {
+          id: "addr-match",
+          place_name: "다른이름식당",
+          category_name: "음식점 > 한식",
+          place_url: "https://place.map.kakao.com/addr-match",
+          x: "127.0276",
+          y: "37.4979",
+          distance: "50",
+          address_name: "서울시 강남구 역삼동 123",
+          road_address_name: "서울특별시 강남구 테헤란로 123",
+          category_group_name: "음식점",
+        },
+      ],
+      meta: { total_count: 1, pageable_count: 1, is_end: true },
+    });
+
+    const result = await findKakaoMatchByAddress(
+      "서울특별시 강남구 테헤란로 123",
+      37.4979,
+      127.0276,
+    );
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("addr-match");
+  });
+
+  it("skips empty address", async () => {
+    const result = await findKakaoMatchByAddress("", 37.4979, 127.0276);
+    expect(result).toBeNull();
+    expect(mockSearchByKeyword).not.toHaveBeenCalled();
+  });
+
+  it("skips undefined address", async () => {
+    const result = await findKakaoMatchByAddress(undefined, 37.4979, 127.0276);
+    expect(result).toBeNull();
+    expect(mockSearchByKeyword).not.toHaveBeenCalled();
+  });
+
+  it("returns null when no address matches", async () => {
+    mockSearchByKeyword.mockResolvedValue({
+      documents: [
+        {
+          id: "no-addr",
+          place_name: "무관한곳",
+          category_name: "음식점",
+          place_url: "",
+          x: "127.0276",
+          y: "37.4979",
+          distance: "30",
+          address_name: "서울시 서초구 서초동 456",
+          road_address_name: "서울특별시 서초구 서초대로 456",
+          category_group_name: "음식점",
+        },
+      ],
+      meta: { total_count: 1, pageable_count: 1, is_end: true },
+    });
+
+    const result = await findKakaoMatchByAddress(
+      "서울특별시 강남구 테헤란로 123",
+      37.4979,
+      127.0276,
+    );
+    expect(result).toBeNull();
+  });
+
+  it("matches against address_name (jibun) when road_address_name is empty", async () => {
+    mockSearchByKeyword.mockResolvedValue({
+      documents: [
+        {
+          id: "jibun-match",
+          place_name: "이름다른식당",
+          category_name: "음식점 > 중식",
+          place_url: "https://place.map.kakao.com/jibun-match",
+          x: "127.0276",
+          y: "37.4979",
+          distance: "40",
+          address_name: "서울특별시 강남구 역삼동 123",
+          road_address_name: "",
+          category_group_name: "음식점",
+        },
+      ],
+      meta: { total_count: 1, pageable_count: 1, is_end: true },
+    });
+
+    const result = await findKakaoMatchByAddress(
+      "서울특별시 강남구 역삼동 123",
+      37.4979,
+      127.0276,
+    );
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("jibun-match");
+  });
+
+  it("returns null when API throws", async () => {
+    mockSearchByKeyword.mockRejectedValue(new Error("API error"));
+    const result = await findKakaoMatchByAddress(
+      "서울특별시 강남구 테헤란로 123",
+      37.4979,
+      127.0276,
+    );
+    expect(result).toBeNull();
+  });
+});
+
+describe("enrichBatch — address matching integration", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("falls through to address matching when name matching fails", async () => {
+    // Tier 1: name match fails (no results)
+    mockSearchByKeyword
+      .mockResolvedValueOnce({
+        documents: [],
+        meta: { total_count: 0, pageable_count: 0, is_end: true },
+      })
+      // Tier 1.5: address match succeeds
+      .mockResolvedValueOnce({
+        documents: [
+          {
+            id: "addr-enriched",
+            place_name: "카카오식당",
+            category_name: "음식점 > 양식",
+            place_url: "https://place.map.kakao.com/addr-enriched",
+            x: "127.0276",
+            y: "37.4979",
+            distance: "30",
+            address_name: "서울시 강남구 역삼동 123",
+            road_address_name: "서울특별시 강남구 테헤란로 123",
+            category_group_name: "음식점",
+          },
+        ],
+        meta: { total_count: 1, pageable_count: 1, is_end: true },
+      });
+
+    const updateCalls: Array<Record<string, unknown>> = [];
+    const mockSupabase = {
+      from: () => ({
+        update: (data: Record<string, unknown>) => {
+          updateCalls.push(data);
+          return {
+            eq: (_col: string, _val: string) => ({
+              eq: (_col2: string, _val2: string) =>
+                Promise.resolve({ data: null, error: null }),
+              then: (resolve: (v: unknown) => void) =>
+                resolve({ data: null, error: null }),
+            }),
+          };
+        },
+      }),
+    };
+
+    const result = await enrichBatch(
+      null,
+      [
+        {
+          kakao_place_id: "naver_37.4979_127.0276",
+          name: "네이버식당",
+          lat: 37.4979,
+          lng: 127.0276,
+          address: "서울특별시 강남구 테헤란로 123",
+        },
+      ],
+      mockSupabase,
+      "user-123",
+    );
+
+    // Address match = full update (all three fields)
+    expect(updateCalls.length).toBe(1);
+    expect(updateCalls[0]).toHaveProperty("kakao_place_id", "addr-enriched");
+    expect(updateCalls[0]).toHaveProperty("category", "음식점 > 양식");
+    expect(updateCalls[0]).toHaveProperty(
+      "place_url",
+      "https://place.map.kakao.com/addr-enriched",
+    );
+    expect(result.enrichedCount).toBe(1);
   });
 });
