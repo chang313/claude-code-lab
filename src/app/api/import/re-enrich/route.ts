@@ -18,7 +18,7 @@ export async function POST() {
   // Find all uncategorized restaurants for this user
   const { data: restaurants } = await supabase
     .from("restaurants")
-    .select("kakao_place_id, name, lat, lng, category")
+    .select("kakao_place_id, name, lat, lng, category, address")
     .eq("user_id", user.id)
     .eq("category", "");
 
@@ -38,6 +38,7 @@ export async function POST() {
       lat: number;
       lng: number;
       category: string;
+      address: string;
     }>,
     supabase,
     user.id,
