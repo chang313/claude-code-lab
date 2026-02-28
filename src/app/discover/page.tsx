@@ -1,159 +1,140 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import DiscoverCard from "@/components/DiscoverCard";
+import { useRef, useEffect, useMemo } from "react";
+import { useWishlist } from "@/db/hooks";
+import { useChat } from "@/hooks/use-chat";
+import ChatInput from "@/components/ChatInput";
+import AssistantBubble from "@/components/AssistantBubble";
 import Toast from "@/components/Toast";
-import { createClient } from "@/lib/supabase/client";
-import { invalidate, invalidateByPrefix } from "@/lib/supabase/invalidate";
-import type { DiscoverItem, DiscoverResponse } from "@/types";
+import type { Restaurant } from "@/types";
+
+const SUGGESTED_PROMPTS = [
+  "오늘 뭐 먹지?",
+  "매운 거 추천해줘",
+  "카페 가고 싶어",
+  "별점 높은 곳 알려줘",
+];
+
+const MIN_PLACES = 3;
 
 export default function DiscoverPage() {
-  const [recommendations, setRecommendations] = useState<DiscoverItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [addingId, setAddingId] = useState<string | null>(null);
-  const [toast, setToast] = useState<{
-    message: string;
-    type: "success" | "error";
-  } | null>(null);
+  const { restaurants, isLoading: placesLoading } = useWishlist();
+  const { messages, isStreaming, error, sendMessage, clearMessages } = useChat();
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const fetchRecommendations = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/recommendations/generate", {
-        method: "POST",
-      });
-
-      if (!res.ok) {
-        setError("추천 생성에 실패했습니다");
-        return;
-      }
-
-      const data: DiscoverResponse = await res.json();
-      setRecommendations(data.recommendations);
-    } catch {
-      setError("추천 생성에 실패했습니다");
-    } finally {
-      setIsLoading(false);
+  // Build a place lookup map
+  const placeMap = useMemo(() => {
+    const map = new Map<string, Restaurant>();
+    for (const r of restaurants) {
+      map.set(r.id, r);
     }
-  }, []);
+    return map;
+  }, [restaurants]);
 
+  // Auto-scroll to bottom on new messages
   useEffect(() => {
-    fetchRecommendations();
-  }, [fetchRecommendations]);
-
-  const handleAdd = async (item: DiscoverItem) => {
-    if (addingId) return;
-    setAddingId(item.kakaoPlaceId);
-
-    try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { error } = await supabase.from("restaurants").insert({
-        user_id: user.id,
-        kakao_place_id: item.kakaoPlaceId,
-        name: item.name,
-        address: item.address,
-        category: item.category,
-        lat: item.lat,
-        lng: item.lng,
-        place_url: item.placeUrl,
-        star_rating: null,
-      });
-
-      if (error) {
-        if (error.code === "23505") {
-          setToast({ message: "이미 저장된 맛집입니다", type: "error" });
-          return;
-        }
-        throw error;
-      }
-
-      setToast({
-        message: `${item.name} 위시리스트에 추가됨`,
-        type: "success",
-      });
-      invalidate("restaurants");
-      invalidateByPrefix("restaurant-status:");
-      invalidateByPrefix("wishlisted-set:");
-
-      // Remove from list
-      setRecommendations((prev) =>
-        prev.filter((r) => r.kakaoPlaceId !== item.kakaoPlaceId),
-      );
-    } catch {
-      setToast({ message: "추가에 실패했습니다", type: "error" });
-    } finally {
-      setAddingId(null);
+    const el = scrollRef.current;
+    if (el && typeof el.scrollTo === "function") {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     }
-  };
+  }, [messages]);
+
+  if (placesLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-400 text-sm">로딩 중...</p>
+      </div>
+    );
+  }
+
+  if (restaurants.length < MIN_PLACES) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 px-4 text-center">
+        <p className="text-lg text-gray-600">
+          맛집을 3개 이상 저장하면 AI 추천을 받을 수 있어요!
+        </p>
+        <p className="text-sm text-gray-400 mt-2">
+          검색에서 맛집을 저장해보세요
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4 pb-20">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">맛집 추천</h1>
-        <button
-          onClick={fetchRecommendations}
-          disabled={isLoading}
-          className="text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400"
-        >
-          새로고침
-        </button>
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <h1 className="text-lg font-bold">AI 맛집 추천</h1>
+        {messages.length > 0 && (
+          <button
+            onClick={clearMessages}
+            className="text-sm text-gray-400 hover:text-gray-600"
+          >
+            새 대화
+          </button>
+        )}
       </div>
 
-      {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="bg-gray-100 rounded-xl h-28 animate-pulse"
-            />
-          ))}
-          <p className="text-center text-sm text-gray-400">
-            추천 맛집 찾는 중...
-          </p>
-        </div>
-      ) : error ? (
-        <div className="text-center py-12">
-          <p className="text-gray-500">{error}</p>
-          <button
-            onClick={fetchRecommendations}
-            className="mt-3 text-sm text-blue-600 hover:text-blue-800"
-          >
-            다시 시도
-          </button>
-        </div>
-      ) : recommendations.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          <p className="text-lg">추천을 생성하려면 맛집을 더 저장해보세요</p>
-          <p className="text-sm mt-1">
-            최소 3개 이상의 맛집을 저장하면 AI가 추천해드려요
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {recommendations.map((item) => (
-            <DiscoverCard
-              key={item.kakaoPlaceId}
-              item={item}
-              onAdd={handleAdd}
-              isAdding={addingId === item.kakaoPlaceId}
-            />
-          ))}
-        </div>
-      )}
+      {/* Messages area */}
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-4">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-6">
+            <div className="text-center">
+              <p className="text-gray-500 text-sm">
+                저장한 {restaurants.length}개의 맛집 중에서 추천해드릴게요
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2">
+              {SUGGESTED_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => sendMessage(prompt)}
+                  disabled={isStreaming}
+                  className="px-4 py-2 rounded-full border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div>
+            {messages.map((msg, i) =>
+              msg.role === "user" ? (
+                <div key={i} className="flex justify-end mb-3">
+                  <div className="max-w-[85%] bg-blue-600 text-white rounded-2xl rounded-tr-sm px-4 py-3">
+                    <p className="text-sm">{msg.content}</p>
+                  </div>
+                </div>
+              ) : (
+                <AssistantBubble key={i} content={msg.content} placeMap={placeMap} />
+              ),
+            )}
+            {isStreaming && messages[messages.length - 1]?.content === "" && (
+              <div className="flex justify-start mb-3">
+                <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm border border-gray-100">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 rounded-full bg-gray-300 animate-bounce" />
+                    <span className="w-2 h-2 rounded-full bg-gray-300 animate-bounce [animation-delay:0.15s]" />
+                    <span className="w-2 h-2 rounded-full bg-gray-300 animate-bounce [animation-delay:0.3s]" />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
-      {toast && (
+      {/* Input */}
+      <div className="pb-16">
+        <ChatInput onSend={sendMessage} disabled={isStreaming} />
+      </div>
+
+      {error && (
         <Toast
-          message={toast.message}
-          type={toast.type}
-          onDismiss={() => setToast(null)}
+          message={error}
+          type="error"
+          onDismiss={() => {}}
         />
       )}
     </div>
