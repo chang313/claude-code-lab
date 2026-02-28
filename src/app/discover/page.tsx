@@ -61,7 +61,7 @@ export default function DiscoverPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-[calc(100dvh-8rem)]">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <h1 className="text-lg font-bold">AI 맛집 추천</h1>
@@ -125,10 +125,8 @@ export default function DiscoverPage() {
         )}
       </div>
 
-      {/* Input */}
-      <div className="pb-16">
-        <ChatInput onSend={sendMessage} disabled={isStreaming} />
-      </div>
+      {/* Input — pinned to bottom of flex container */}
+      <ChatInput onSend={sendMessage} disabled={isStreaming} />
 
       {error && (
         <Toast
