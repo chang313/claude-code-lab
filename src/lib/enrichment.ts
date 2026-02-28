@@ -47,14 +47,35 @@ export function tokenOverlapScore(a: string[], b: string[]): number {
 
 const TOKEN_OVERLAP_THRESHOLD = 0.6;
 
-/** Check if two names match via substring or token overlap. */
+export const MIN_SUBSTRING_RATIO = 0.6;
+export const NAME_WEIGHT = 0.8;
+export const DIST_WEIGHT = 0.2;
+export const MIN_COMPOSITE_SCORE = 0.5;
+
+/** Graduated name similarity score (0–1). Higher = more confident match. */
+export function nameMatchScore(naverName: string, kakaoName: string): number {
+  const rawA = naverName.replace(/\s+/g, "").toLowerCase();
+  const rawB = kakaoName.replace(/\s+/g, "").toLowerCase();
+  if (rawA === rawB) return 1.0; // raw exact
+
+  const normA = normalizeName(naverName);
+  const normB = normalizeName(kakaoName);
+  if (normA === normB) return 0.85; // normalized exact
+
+  if (normA.includes(normB) || normB.includes(normA)) {
+    const ratio =
+      Math.min(normA.length, normB.length) /
+      Math.max(normA.length, normB.length);
+    if (ratio >= MIN_SUBSTRING_RATIO) return ratio; // proportional substring
+  }
+
+  const overlap = tokenOverlapScore(tokenize(naverName), tokenize(kakaoName));
+  return overlap >= TOKEN_OVERLAP_THRESHOLD ? overlap * 0.7 : 0; // token overlap
+}
+
+/** Check if two names match (any positive name score). */
 export function isNameMatch(naverName: string, kakaoName: string): boolean {
-  const a = normalizeName(naverName);
-  const b = normalizeName(kakaoName);
-  // Fast path: substring match
-  if (a.includes(b) || b.includes(a)) return true;
-  // Fallback: token overlap
-  return tokenOverlapScore(tokenize(naverName), tokenize(kakaoName)) >= TOKEN_OVERLAP_THRESHOLD;
+  return nameMatchScore(naverName, kakaoName) > 0;
 }
 
 /** Extract the core (brand) name: first token if >= 2 chars; null for single-token names. */
@@ -123,7 +144,7 @@ export async function findKakaoMatchByAddress(
   }
 }
 
-/** Find the closest name-matching place from a list of documents within a given radius. */
+/** Find the best name+distance matching place from a list of documents within a given radius. */
 function findBestMatch(
   documents: KakaoPlace[],
   naverName: string,
@@ -132,7 +153,7 @@ function findBestMatch(
   radius: number,
 ): KakaoPlace | null {
   let best: KakaoPlace | null = null;
-  let bestDist = Infinity;
+  let bestComposite = -1;
 
   for (const doc of documents) {
     const docLat = parseFloat(doc.y);
@@ -140,15 +161,20 @@ function findBestMatch(
     const dist = haversineDistance(lat, lng, docLat, docLng);
 
     if (dist > radius) continue;
-    if (!isNameMatch(naverName, doc.place_name)) continue;
 
-    if (dist < bestDist) {
+    const nScore = nameMatchScore(naverName, doc.place_name);
+    if (nScore === 0) continue;
+
+    const distScore = 1 - dist / radius;
+    const composite = nScore * NAME_WEIGHT + distScore * DIST_WEIGHT;
+
+    if (composite > bestComposite) {
       best = doc;
-      bestDist = dist;
+      bestComposite = composite;
     }
   }
 
-  return best;
+  return bestComposite >= MIN_COMPOSITE_SCORE ? best : null;
 }
 
 /**
@@ -175,11 +201,18 @@ export async function findKakaoMatch(
     const match = findBestMatch(res.documents, naverName, lat, lng, MATCH_RADIUS_M);
     if (match) return match;
 
-    // Tier 1b: retry with core name (brand name only)
+    // Tier 1b: retry with simplified name
+    // Prefer core name (first token) for multi-token names,
+    // fall back to suffix-stripped name (e.g. "라치몬트 본점" → "라치몬트")
+    const trimmedName = naverName.trim();
+    const strippedName = stripSuffix(trimmedName).trim();
     const coreName = extractCoreName(naverName);
-    if (coreName) {
+    const retryQuery =
+      coreName || (strippedName !== trimmedName ? strippedName : null);
+
+    if (retryQuery) {
       const retryRes = await searchByKeyword({
-        query: coreName,
+        query: retryQuery,
         x: String(lng),
         y: String(lat),
         radius: MATCH_RADIUS_M,

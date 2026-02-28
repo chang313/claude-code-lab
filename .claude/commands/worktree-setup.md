@@ -28,7 +28,11 @@ Set up a git worktree for parallel feature development. The user will provide th
 4. **Install dependencies** in the new worktree:
    - `cd ../<branch-name> && pnpm install`
 
-5. **Report** the worktree path and suggest next steps:
+5. **Copy environment files** from the main repo root:
+   - Copy `.env.local` if it exists: `cp <repo-root>/.env.local ../<branch-name>/.env.local`
+   - Skip silently if `.env.local` doesn't exist in the main repo
+
+6. **Report** the worktree path and suggest next steps:
    - "Worktree ready at `../<branch-name>/`"
    - "Run `/speckit.plan` or `/speckit.implement` to continue"
    - Pair with `/feature-cleanup <branch-name>` when done

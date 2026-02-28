@@ -18,8 +18,10 @@ import {
   tokenize,
   tokenOverlapScore,
   isNameMatch,
+  nameMatchScore,
   extractCoreName,
   findNearestByCoordinates,
+  MIN_SUBSTRING_RATIO,
 } from "@/lib/enrichment";
 
 describe("normalizeName", () => {
@@ -280,6 +282,83 @@ describe("findKakaoMatch", () => {
 
     const result = await findKakaoMatch("맛집A", 37.4979, 127.0276);
     expect(result).toBeNull();
+  });
+
+  it("prefers raw exact match over closer normalized-exact match (라치몬트 regression)", async () => {
+    // Bakery "라치몬트 본점" at 150m vs office "라치몬트" at 20m
+    // Bakery = raw exact (1.0), office = normalized exact (0.85 after 본점 stripped)
+    // Bakery should win despite being farther
+    mockSearchByKeyword.mockResolvedValue({
+      documents: [
+        {
+          id: "office-close",
+          place_name: "라치몬트",
+          category_name: "서비스 > 사무실",
+          place_url: "https://place.map.kakao.com/office",
+          x: "127.02762",
+          y: "37.49792",
+          distance: "20",
+          address_name: "",
+          road_address_name: "",
+          category_group_name: "",
+        },
+        {
+          id: "bakery-far",
+          place_name: "라치몬트 본점",
+          category_name: "음식점 > 베이커리",
+          place_url: "https://place.map.kakao.com/bakery",
+          x: "127.0290",
+          y: "37.4990",
+          distance: "150",
+          address_name: "",
+          road_address_name: "",
+          category_group_name: "음식점",
+        },
+      ],
+      meta: { total_count: 2, pageable_count: 2, is_end: true },
+    });
+
+    const result = await findKakaoMatch("라치몬트 본점", 37.4979, 127.0276);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("bakery-far");
+  });
+
+  it("prefers raw exact match over weak token-overlap match (필름로그 regression)", async () => {
+    // Correct "필름로그 현상소" at 200m vs wrong "필름로그" at 30m
+    // Correct = raw exact (1.0), wrong = token overlap (0.7)
+    mockSearchByKeyword.mockResolvedValue({
+      documents: [
+        {
+          id: "wrong-close",
+          place_name: "필름로그",
+          category_name: "서비스 > 사진",
+          place_url: "",
+          x: "127.02763",
+          y: "37.49793",
+          distance: "30",
+          address_name: "",
+          road_address_name: "",
+          category_group_name: "",
+        },
+        {
+          id: "correct-far",
+          place_name: "필름로그 현상소",
+          category_name: "서비스 > 사진",
+          place_url: "https://place.map.kakao.com/correct",
+          x: "127.0290",
+          y: "37.4997",
+          distance: "200",
+          address_name: "",
+          road_address_name: "",
+          category_group_name: "",
+        },
+      ],
+      meta: { total_count: 2, pageable_count: 2, is_end: true },
+    });
+
+    const result = await findKakaoMatch("필름로그 현상소", 37.4979, 127.0276);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("correct-far");
   });
 });
 
@@ -652,6 +731,60 @@ describe("isNameMatch", () => {
     // 2 common tokens ("스타벅스", "리저브") out of min(2, 2) = 2 → 1.0
     expect(isNameMatch("스타벅스 리저브", "스타벅스 리저브 청담")).toBe(true);
   });
+
+  it("rejects substring below MIN_SUBSTRING_RATIO", () => {
+    // "필름로그현상소" (7 chars) vs "필름로그" (4 chars) → ratio 4/7=0.571 < 0.6
+    // But still matches via token overlap ("필름로그" shared) → true
+    expect(isNameMatch("필름로그 현상소", "필름로그")).toBe(true);
+  });
+});
+
+describe("nameMatchScore", () => {
+  it("returns 1.0 for raw exact match", () => {
+    expect(nameMatchScore("라치몬트 본점", "라치몬트 본점")).toBe(1.0);
+  });
+
+  it("returns 1.0 for raw exact match (case insensitive)", () => {
+    expect(nameMatchScore("Burger King", "burger king")).toBe(1.0);
+  });
+
+  it("returns 1.0 for raw exact match (whitespace normalized)", () => {
+    expect(nameMatchScore("맛집  A", "맛집 A")).toBe(1.0);
+  });
+
+  it("returns 0.7 for generic suffix via token overlap (normalizeName over-strips)", () => {
+    // normalizeName("스타벅스 강남점") → "스타" (generic regex over-strips without whitespace boundary)
+    // Falls to token overlap: ["스타벅스"] vs ["스타벅스"] → 1.0 * 0.7 = 0.7
+    expect(nameMatchScore("스타벅스 강남점", "스타벅스")).toBeCloseTo(0.7, 2);
+  });
+
+  it("returns 0.85 for normalized exact match (본점 stripped)", () => {
+    expect(nameMatchScore("라치몬트 본점", "라치몬트")).toBe(0.85);
+  });
+
+  it("returns proportional ratio for substring >= MIN_SUBSTRING_RATIO", () => {
+    // "스타벅스리저브" (7 chars) vs "스타벅스리저브청담" (9 chars) → 7/9=0.778
+    const score = nameMatchScore("스타벅스 리저브", "스타벅스 리저브 청담");
+    expect(score).toBeCloseTo(7 / 9, 2);
+    expect(score).toBeGreaterThanOrEqual(MIN_SUBSTRING_RATIO);
+  });
+
+  it("falls to token overlap when substring ratio < MIN_SUBSTRING_RATIO", () => {
+    // "필름로그현상소" (7) vs "필름로그" (4) → 4/7=0.571 < 0.6
+    // Token overlap: ["필름로그","현상소"] vs ["필름로그"] → 1/1=1.0 → 0.7
+    expect(nameMatchScore("필름로그 현상소", "필름로그")).toBeCloseTo(0.7, 2);
+  });
+
+  it("returns token overlap * 0.7 for token-only match", () => {
+    // "스타벅스 리저브 청담" vs "스타벅스" — normalized: no substring (too low ratio)
+    // Actually normA="스타벅스리저브청담", normB="스타벅스", substring matches, ratio 3/7=0.43 < 0.6
+    // Token overlap: ["스타벅스","리저브","청담"] vs ["스타벅스"] → 1/1=1.0 → 0.7
+    expect(nameMatchScore("스타벅스 리저브 청담", "스타벅스")).toBeCloseTo(0.7, 2);
+  });
+
+  it("returns 0 for completely different names", () => {
+    expect(nameMatchScore("맛집A", "완전다른가게")).toBe(0);
+  });
 });
 
 describe("extractCoreName", () => {
@@ -718,7 +851,7 @@ describe("findKakaoMatch — Tier 1b (core name retry)", () => {
     expect(mockSearchByKeyword.mock.calls[1][0].query).toBe("스타벅스");
   });
 
-  it("does not retry for single-token names", async () => {
+  it("does not retry for single-token names without suffix", async () => {
     mockSearchByKeyword.mockResolvedValue({
       documents: [],
       meta: { total_count: 0, pageable_count: 0, is_end: true },
@@ -726,8 +859,47 @@ describe("findKakaoMatch — Tier 1b (core name retry)", () => {
 
     const result = await findKakaoMatch("스타벅스", 37.4979, 127.0276);
     expect(result).toBeNull();
-    // Only 1 call (no Tier 1b retry since extractCoreName returns null)
+    // Only 1 call (no retry: extractCoreName=null, no suffix to strip)
     expect(mockSearchByKeyword).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries with suffix-stripped name when coreName is null (라치몬트 본점)", async () => {
+    // "라치몬트 본점" → extractCoreName=null (single token after 본점 strip)
+    // But stripSuffix("라치몬트 본점") = "라치몬트 " → retry with "라치몬트"
+    const emptyResult = {
+      documents: [],
+      meta: { total_count: 0, pageable_count: 0, is_end: true },
+    };
+
+    const strippedResult = {
+      documents: [
+        {
+          id: "larchmont-cafe",
+          place_name: "라치몬트",
+          category_name: "음식점 > 카페",
+          place_url: "http://place.map.kakao.com/1361082522",
+          x: "126.959394",
+          y: "37.4781",
+          distance: "6",
+          address_name: "서울 관악구 봉천동",
+          road_address_name: "서울 관악구 낙성대로 4",
+          category_group_name: "카페",
+        },
+      ],
+      meta: { total_count: 1, pageable_count: 1, is_end: true },
+    };
+
+    mockSearchByKeyword
+      .mockResolvedValueOnce(emptyResult) // Tier 1: "라치몬트 본점" → 0 results
+      .mockResolvedValueOnce(strippedResult); // Tier 1b: "라치몬트" → cafe found
+
+    const result = await findKakaoMatch("라치몬트 본점", 37.4781, 126.9594);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("larchmont-cafe");
+    expect(result!.category_name).toBe("음식점 > 카페");
+    expect(mockSearchByKeyword).toHaveBeenCalledTimes(2);
+    // Tier 1b should search with suffix-stripped name
+    expect(mockSearchByKeyword.mock.calls[1][0].query).toBe("라치몬트");
   });
 });
 
