@@ -1,4 +1,4 @@
-import { searchByKeyword, searchByCategory } from "@/lib/kakao";
+import { searchByKeyword } from "@/lib/kakao";
 import { haversineDistance } from "@/lib/haversine";
 import type { KakaoPlace } from "@/types";
 
@@ -131,41 +131,29 @@ export async function findKakaoMatch(
 }
 
 /**
- * Coordinate-based category fallback: find the nearest food establishment
- * by coordinates and return its category. Tries FD6 (음식점) first, then CE7 (카페).
+ * Coordinate-based category fallback: find the nearest place by name at coordinates.
+ * Uses keyword search with the restaurant name to find any matching place (not category-restricted).
  * Returns category_name string or null.
  */
 export async function findCategoryByCoordinates(
   lat: number,
   lng: number,
+  name?: string,
 ): Promise<string | null> {
   try {
-    // Try FD6 (음식점) first
-    const fd6 = await searchByCategory({
-      categoryGroupCode: "FD6",
-      x: String(lng),
-      y: String(lat),
-      radius: FALLBACK_RADIUS_M,
-      sort: "distance",
-      size: 5,
-    });
+    if (name) {
+      const res = await searchByKeyword({
+        query: name,
+        x: String(lng),
+        y: String(lat),
+        radius: FALLBACK_RADIUS_M,
+        sort: "distance",
+        size: 5,
+      });
 
-    if (fd6.documents.length > 0) {
-      return fd6.documents[0].category_name;
-    }
-
-    // Fallback to CE7 (카페)
-    const ce7 = await searchByCategory({
-      categoryGroupCode: "CE7",
-      x: String(lng),
-      y: String(lat),
-      radius: FALLBACK_RADIUS_M,
-      sort: "distance",
-      size: 5,
-    });
-
-    if (ce7.documents.length > 0) {
-      return ce7.documents[0].category_name;
+      if (res.documents.length > 0) {
+        return res.documents[0].category_name;
+      }
     }
 
     return null;
@@ -256,6 +244,7 @@ export async function enrichBatch(
           const fallbackCategory = await findCategoryByCoordinates(
             restaurant.lat,
             restaurant.lng,
+            restaurant.name,
           );
 
           if (fallbackCategory) {

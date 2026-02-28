@@ -36,13 +36,21 @@ beforeEach(() => {
 });
 
 describe("searchByKeyword", () => {
-  it("should include category_group_code=FD6 in query params", async () => {
-    await searchByKeyword({ query: "pizza" });
+  it("should include category_group_code when provided", async () => {
+    await searchByKeyword({ query: "pizza", categoryGroupCode: "FD6" });
 
     const fetchCall = vi.mocked(fetch).mock.calls[0];
     const url = new URL(fetchCall[0] as string);
     expect(url.searchParams.get("category_group_code")).toBe("FD6");
     expect(url.searchParams.get("query")).toBe("pizza");
+  });
+
+  it("should omit category_group_code when not provided", async () => {
+    await searchByKeyword({ query: "pizza" });
+
+    const fetchCall = vi.mocked(fetch).mock.calls[0];
+    const url = new URL(fetchCall[0] as string);
+    expect(url.searchParams.has("category_group_code")).toBe(false);
   });
 
   it("should send Authorization header with KakaoAK prefix", async () => {

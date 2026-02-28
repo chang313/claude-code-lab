@@ -42,10 +42,13 @@ export async function searchByKeyword(params: {
   radius?: number;
   rect?: string;
   sort?: "accuracy" | "distance";
+  categoryGroupCode?: string;
 }): Promise<KakaoSearchResponse> {
   const url = new URL(`${BASE_URL}/keyword`);
   url.searchParams.set("query", params.query);
-  url.searchParams.set("category_group_code", "FD6");
+  if (params.categoryGroupCode) {
+    url.searchParams.set("category_group_code", params.categoryGroupCode);
+  }
   if (params.page) url.searchParams.set("page", String(params.page));
   if (params.size) url.searchParams.set("size", String(params.size));
   if (params.x) url.searchParams.set("x", params.x);
@@ -95,7 +98,7 @@ async function paginatedSearch(params: {
   const all: KakaoPlace[] = [];
 
   for (let page = 1; page <= 3; page++) {
-    const res = await searchByKeyword({ ...params, page, size });
+    const res = await searchByKeyword({ ...params, page, size, categoryGroupCode: "FD6" });
     all.push(...res.documents);
     if (res.meta.is_end) break;
   }
