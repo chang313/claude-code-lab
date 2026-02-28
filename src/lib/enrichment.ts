@@ -1,4 +1,4 @@
-import { searchByKeyword } from "@/lib/kakao";
+import { searchByKeyword, searchByCategory } from "@/lib/kakao";
 import { haversineDistance } from "@/lib/haversine";
 import type { KakaoPlace } from "@/types";
 
@@ -22,11 +22,46 @@ export function normalizeName(name: string): string {
   return stripSuffix(base);
 }
 
-/** Check if two names are a substring match (either contains the other). */
-function isNameMatch(naverName: string, kakaoName: string): boolean {
+/** Split a name into tokens: whitespace boundaries + Korean/non-Korean transitions, lowercased, suffixes stripped. */
+export function tokenize(name: string): string[] {
+  const stripped = stripSuffix(name.trim());
+  // Split on whitespace first
+  const parts = stripped.split(/\s+/).filter(Boolean);
+  const tokens: string[] = [];
+  for (const part of parts) {
+    // Split on Korean/non-Korean transitions
+    const sub = part.match(/[\uAC00-\uD7A3\u3131-\u318F]+|[^\uAC00-\uD7A3\u3131-\u318F]+/g);
+    if (sub) tokens.push(...sub);
+    else tokens.push(part);
+  }
+  return tokens.map((t) => t.toLowerCase()).filter((t) => t.length > 0);
+}
+
+/** Ratio of shared tokens between two token sets (relative to the smaller set). */
+export function tokenOverlapScore(a: string[], b: string[]): number {
+  if (a.length === 0 || b.length === 0) return 0;
+  const setB = new Set(b);
+  const common = a.filter((t) => setB.has(t)).length;
+  return common / Math.min(a.length, b.length);
+}
+
+const TOKEN_OVERLAP_THRESHOLD = 0.6;
+
+/** Check if two names match via substring or token overlap. */
+export function isNameMatch(naverName: string, kakaoName: string): boolean {
   const a = normalizeName(naverName);
   const b = normalizeName(kakaoName);
-  return a.includes(b) || b.includes(a);
+  // Fast path: substring match
+  if (a.includes(b) || b.includes(a)) return true;
+  // Fallback: token overlap
+  return tokenOverlapScore(tokenize(naverName), tokenize(kakaoName)) >= TOKEN_OVERLAP_THRESHOLD;
+}
+
+/** Extract the core (brand) name: first token if >= 2 chars; null for single-token names. */
+export function extractCoreName(name: string): string | null {
+  const tokens = tokenize(name);
+  if (tokens.length <= 1) return null;
+  return tokens[0].length >= 2 ? tokens[0] : null;
 }
 
 /** Normalize a Korean address for comparison: trim, collapse spaces, strip administrative suffixes. */
@@ -88,8 +123,37 @@ export async function findKakaoMatchByAddress(
   }
 }
 
+/** Find the closest name-matching place from a list of documents within a given radius. */
+function findBestMatch(
+  documents: KakaoPlace[],
+  naverName: string,
+  lat: number,
+  lng: number,
+  radius: number,
+): KakaoPlace | null {
+  let best: KakaoPlace | null = null;
+  let bestDist = Infinity;
+
+  for (const doc of documents) {
+    const docLat = parseFloat(doc.y);
+    const docLng = parseFloat(doc.x);
+    const dist = haversineDistance(lat, lng, docLat, docLng);
+
+    if (dist > radius) continue;
+    if (!isNameMatch(naverName, doc.place_name)) continue;
+
+    if (dist < bestDist) {
+      best = doc;
+      bestDist = dist;
+    }
+  }
+
+  return best;
+}
+
 /**
  * Find a Kakao match for a Naver restaurant using name + coordinates.
+ * Tier 1: full name search → Tier 1b: core name retry.
  * Returns the best matching KakaoPlace, or null if no confident match.
  */
 export async function findKakaoMatch(
@@ -98,6 +162,7 @@ export async function findKakaoMatch(
   lng: number,
 ): Promise<KakaoPlace | null> {
   try {
+    // Tier 1: search with full name (no category filter)
     const res = await searchByKeyword({
       query: naverName,
       x: String(lng),
@@ -107,59 +172,78 @@ export async function findKakaoMatch(
       size: 5,
     });
 
-    let best: KakaoPlace | null = null;
-    let bestDist = Infinity;
+    const match = findBestMatch(res.documents, naverName, lat, lng, MATCH_RADIUS_M);
+    if (match) return match;
 
-    for (const doc of res.documents) {
-      const docLat = parseFloat(doc.y);
-      const docLng = parseFloat(doc.x);
-      const dist = haversineDistance(lat, lng, docLat, docLng);
+    // Tier 1b: retry with core name (brand name only)
+    const coreName = extractCoreName(naverName);
+    if (coreName) {
+      const retryRes = await searchByKeyword({
+        query: coreName,
+        x: String(lng),
+        y: String(lat),
+        radius: MATCH_RADIUS_M,
+        sort: "distance",
+        size: 10,
+      });
 
-      if (dist > MATCH_RADIUS_M) continue;
-      if (!isNameMatch(naverName, doc.place_name)) continue;
-
-      if (dist < bestDist) {
-        best = doc;
-        bestDist = dist;
-      }
+      return findBestMatch(retryRes.documents, naverName, lat, lng, MATCH_RADIUS_M);
     }
 
-    return best;
+    return null;
   } catch {
     return null;
   }
 }
 
 /**
- * Coordinate-based category fallback: find the nearest place by name at coordinates.
- * Uses keyword search with the restaurant name to find any matching place (not category-restricted).
- * Returns category_name string or null.
+ * Coordinate-based fallback: find the nearest food establishment by coordinates.
+ * Tries FD6 (음식점) first, then CE7 (카페). Returns full KakaoPlace or null.
  */
-export async function findCategoryByCoordinates(
+export async function findNearestByCoordinates(
   lat: number,
   lng: number,
-  name?: string,
-): Promise<string | null> {
+): Promise<KakaoPlace | null> {
   try {
-    if (name) {
-      const res = await searchByKeyword({
-        query: name,
-        x: String(lng),
-        y: String(lat),
-        radius: FALLBACK_RADIUS_M,
-        sort: "distance",
-        size: 5,
-      });
+    const fd6 = await searchByCategory({
+      categoryGroupCode: "FD6",
+      x: String(lng),
+      y: String(lat),
+      radius: FALLBACK_RADIUS_M,
+      sort: "distance",
+      size: 5,
+    });
 
-      if (res.documents.length > 0) {
-        return res.documents[0].category_name;
-      }
+    if (fd6.documents.length > 0) {
+      return fd6.documents[0];
+    }
+
+    const ce7 = await searchByCategory({
+      categoryGroupCode: "CE7",
+      x: String(lng),
+      y: String(lat),
+      radius: FALLBACK_RADIUS_M,
+      sort: "distance",
+      size: 5,
+    });
+
+    if (ce7.documents.length > 0) {
+      return ce7.documents[0];
     }
 
     return null;
   } catch {
     return null;
   }
+}
+
+/** Backward-compatible wrapper: returns category_name string or null. */
+export async function findCategoryByCoordinates(
+  lat: number,
+  lng: number,
+): Promise<string | null> {
+  const nearest = await findNearestByCoordinates(lat, lng);
+  return nearest?.category_name ?? null;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -240,22 +324,40 @@ export async function enrichBatch(
 
           enrichedCount++;
         } else {
-          // Tier 2: Coordinate-based fallback — update category only (preserve kakao_place_id and place_url)
-          const fallbackCategory = await findCategoryByCoordinates(
+          // Tier 2: Coordinate-based fallback — promote to full update if name matches
+          const nearest = await findNearestByCoordinates(
             restaurant.lat,
             restaurant.lng,
-            restaurant.name,
           );
 
-          if (fallbackCategory) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let query: any = supabase
-              .from("restaurants")
-              .update({ category: fallbackCategory })
-              .eq("kakao_place_id", restaurant.kakao_place_id);
+          if (nearest) {
+            if (isNameMatch(restaurant.name, nearest.place_name)) {
+              // Name matches → full update (high confidence)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              let query: any = supabase
+                .from("restaurants")
+                .update({
+                  kakao_place_id: nearest.id,
+                  category: nearest.category_name,
+                  place_url: nearest.place_url,
+                })
+                .eq("kakao_place_id", restaurant.kakao_place_id);
 
-            if (userId) query = query.eq("user_id", userId);
-            await query;
+              if (userId) query = query.eq("user_id", userId);
+              await query;
+
+              enrichedCount++;
+            } else {
+              // No name match → category-only update (preserve synthetic kakao_place_id)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              let query: any = supabase
+                .from("restaurants")
+                .update({ category: nearest.category_name })
+                .eq("kakao_place_id", restaurant.kakao_place_id);
+
+              if (userId) query = query.eq("user_id", userId);
+              await query;
+            }
           }
         }
       }
