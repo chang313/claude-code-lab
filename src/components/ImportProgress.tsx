@@ -102,6 +102,9 @@ export default function ImportProgress({
           {result.skippedCount > 0 && (
             <p>중복 건너뜀: {result.skippedCount}개</p>
           )}
+          {result.closedCount > 0 && (
+            <p>폐업 건너뜀: {result.closedCount}개</p>
+          )}
           {result.invalidCount > 0 && (
             <p>유효하지 않은 항목: {result.invalidCount}개</p>
           )}

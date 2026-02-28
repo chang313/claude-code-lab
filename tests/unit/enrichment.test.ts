@@ -284,30 +284,30 @@ describe("enrichBatch — coordinate fallback integration", () => {
   });
 
   it("updates ONLY category when findKakaoMatch returns null but coordinate fallback succeeds", async () => {
-    // findKakaoMatch → no results (name match fails)
-    mockSearchByKeyword.mockResolvedValue({
-      documents: [],
-      meta: { total_count: 0, pageable_count: 0, is_end: true },
-    });
-
-    // Coordinate fallback → returns category via FD6
-    mockSearchByCategory.mockResolvedValue({
-      documents: [
-        {
-          id: "nearby-1",
-          place_name: "근처식당",
-          category_name: "음식점 > 일식",
-          place_url: "https://place.map.kakao.com/nearby-1",
-          x: "127.0276",
-          y: "37.4979",
-          distance: "30",
-          address_name: "",
-          road_address_name: "",
-          category_group_name: "음식점",
-        },
-      ],
-      meta: { total_count: 1, pageable_count: 1, is_end: true },
-    });
+    // Tier 1: findKakaoMatch → no results (name match fails)
+    mockSearchByKeyword
+      .mockResolvedValueOnce({
+        documents: [],
+        meta: { total_count: 0, pageable_count: 0, is_end: true },
+      })
+      // Tier 2: coordinate fallback with name → returns nearby match
+      .mockResolvedValueOnce({
+        documents: [
+          {
+            id: "nearby-1",
+            place_name: "근처식당",
+            category_name: "음식점 > 일식",
+            place_url: "https://place.map.kakao.com/nearby-1",
+            x: "127.0276",
+            y: "37.4979",
+            distance: "30",
+            address_name: "",
+            road_address_name: "",
+            category_group_name: "음식점",
+          },
+        ],
+        meta: { total_count: 1, pageable_count: 1, is_end: true },
+      });
 
     // Track DB updates
     const updateCalls: Array<Record<string, unknown>> = [];

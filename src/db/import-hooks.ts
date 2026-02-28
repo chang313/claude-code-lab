@@ -22,6 +22,7 @@ interface NaverFetchResponse {
     address: string;
   }>;
   totalCount: number;
+  closedCount: number;
   folderName: string | null;
 }
 
@@ -79,6 +80,7 @@ export function useNaverImport() {
           shareId: rawInput,
           sourceName: naverData.folderName || rawInput,
           bookmarks,
+          closedCount: naverData.closedCount || 0,
         }),
       });
 

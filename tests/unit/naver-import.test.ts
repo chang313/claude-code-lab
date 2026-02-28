@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateShareId, parseNaverBookmarks, buildNaverApiUrl, isNaverShortUrl } from "@/lib/naver";
+import { validateShareId, parseNaverBookmarks, buildNaverApiUrl, isNaverShortUrl, isNaverBookmarkClosed } from "@/lib/naver";
 import { makeNaverPlaceId } from "@/types";
 
 // === T006: validateShareId tests ===
@@ -184,6 +184,60 @@ describe("parseNaverBookmarks", () => {
     const result = parseNaverBookmarks(response);
     expect(result).toHaveLength(1);
     expect(result[0].displayname).toBe("실제이름");
+  });
+
+  it("marks closed places with closed: true when available is false", () => {
+    const response = {
+      bookmarkList: [
+        { name: "영업중맛집", px: 127.0, py: 37.5, address: "서울", available: true },
+        { name: "폐업맛집", px: 127.1, py: 37.6, address: "서울", available: false },
+      ],
+    };
+    const result = parseNaverBookmarks(response);
+    expect(result).toHaveLength(2);
+    expect(result[0].closed).toBe(false);
+    expect(result[1].closed).toBe(true);
+  });
+
+  it("sets closed: false when available field is missing", () => {
+    const response = {
+      bookmarkList: [
+        { name: "맛집", px: 127.0, py: 37.5, address: "서울" },
+      ],
+    };
+    const result = parseNaverBookmarks(response);
+    expect(result[0].closed).toBe(false);
+  });
+
+  it("sets closed: false when available is true", () => {
+    const response = {
+      bookmarkList: [
+        { name: "맛집", px: 127.0, py: 37.5, address: "서울", available: true },
+      ],
+    };
+    const result = parseNaverBookmarks(response);
+    expect(result[0].closed).toBe(false);
+  });
+});
+
+// === isNaverBookmarkClosed tests ===
+
+describe("isNaverBookmarkClosed", () => {
+  it("returns true when available is false", () => {
+    expect(isNaverBookmarkClosed({ available: false })).toBe(true);
+  });
+
+  it("returns false when available is true", () => {
+    expect(isNaverBookmarkClosed({ available: true })).toBe(false);
+  });
+
+  it("returns false when available field is missing", () => {
+    expect(isNaverBookmarkClosed({ name: "맛집", px: 127 })).toBe(false);
+  });
+
+  it("returns false when available is null or undefined", () => {
+    expect(isNaverBookmarkClosed({ available: null })).toBe(false);
+    expect(isNaverBookmarkClosed({ available: undefined })).toBe(false);
   });
 });
 

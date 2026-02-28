@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { shareId?: string; sourceName?: string; bookmarks?: BookmarkPayload[] };
+  let body: { shareId?: string; sourceName?: string; bookmarks?: BookmarkPayload[]; closedCount?: number };
   try {
     body = await request.json();
   } catch {
@@ -50,6 +50,7 @@ export async function POST(request: Request) {
   }
 
   const { shareId, sourceName, bookmarks } = body;
+  const closedCount = typeof body.closedCount === "number" ? body.closedCount : 0;
   if (!shareId || !Array.isArray(bookmarks)) {
     return NextResponse.json(
       { error: "INVALID_REQUEST", message: "잘못된 요청입니다." },
@@ -160,6 +161,7 @@ export async function POST(request: Request) {
     importedCount: toInsert.length,
     skippedCount,
     invalidCount,
-    totalCount: validBookmarks.length + invalidCount,
+    closedCount,
+    totalCount: validBookmarks.length + invalidCount + closedCount,
   });
 }
