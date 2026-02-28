@@ -81,6 +81,7 @@ vi.mock("@/lib/subcategory", () => ({
 
 import {
   useAddRestaurant,
+  useAddFromFriend,
   useUpdateStarRating,
   useMarkAsVisited,
   useMoveToWishlist,
@@ -151,6 +152,72 @@ describe("useAddRestaurant", () => {
         star_rating: 2,
       }),
     );
+  });
+});
+
+describe("useAddFromFriend", () => {
+  const friendRestaurant = {
+    id: "kakao-789",
+    name: "친구네 맛집",
+    address: "서울 강남구 테헤란로 1",
+    category: "음식점 > 한식",
+    lat: 37.5,
+    lng: 127.03,
+    placeUrl: "https://place.map.kakao.com/kakao-789",
+    starRating: 4,
+    createdAt: "2025-01-01T00:00:00Z",
+  };
+
+  it("inserts friend's restaurant as wishlist item (star_rating null)", async () => {
+    const { result } = renderHook(() => useAddFromFriend());
+
+    let success = false;
+    await act(async () => {
+      success = await result.current.addFromFriend(friendRestaurant);
+    });
+
+    expect(success).toBe(true);
+    expect(insertCalls).toHaveLength(1);
+    expect(insertCalls[0].table).toBe("restaurants");
+    expect(insertCalls[0].data).toEqual(
+      expect.objectContaining({
+        user_id: "user-1",
+        kakao_place_id: "kakao-789",
+        name: "친구네 맛집",
+        address: "서울 강남구 테헤란로 1",
+        category: "음식점 > 한식",
+        lat: 37.5,
+        lng: 127.03,
+        place_url: "https://place.map.kakao.com/kakao-789",
+        star_rating: null,
+      }),
+    );
+    expect(invalidateCalls).toContain("restaurants");
+  });
+
+  it("returns false on duplicate (23505 constraint)", async () => {
+    mockInsertResult = { error: { code: "23505", message: "duplicate" } };
+    const { result } = renderHook(() => useAddFromFriend());
+
+    let success = true;
+    await act(async () => {
+      success = await result.current.addFromFriend(friendRestaurant);
+    });
+
+    expect(success).toBe(false);
+  });
+
+  it("returns false when not authenticated", async () => {
+    mockUser = null;
+    const { result } = renderHook(() => useAddFromFriend());
+
+    let success = true;
+    await act(async () => {
+      success = await result.current.addFromFriend(friendRestaurant);
+    });
+
+    expect(success).toBe(false);
+    expect(insertCalls).toHaveLength(0);
   });
 });
 

@@ -183,6 +183,39 @@ export function useAddRestaurant() {
   return { addRestaurant };
 }
 
+export function useAddFromFriend() {
+  const addFromFriend = async (
+    restaurant: Restaurant,
+  ): Promise<boolean> => {
+    const supabase = getSupabase();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    const { error } = await supabase.from("restaurants").insert({
+      user_id: user.id,
+      kakao_place_id: restaurant.id,
+      name: restaurant.name,
+      address: restaurant.address,
+      category: restaurant.category,
+      lat: restaurant.lat,
+      lng: restaurant.lng,
+      place_url: restaurant.placeUrl ?? null,
+      star_rating: null,
+    });
+
+    if (error) {
+      if (error.code === "23505") return false;
+      throw error;
+    }
+
+    invalidateRestaurants();
+    return true;
+  };
+  return { addFromFriend };
+}
+
 export function useRemoveRestaurant(onError?: (msg: string) => void) {
   const removeRestaurant = async (
     kakaoPlaceId: string,
