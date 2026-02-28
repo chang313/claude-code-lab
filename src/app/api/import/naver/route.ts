@@ -103,20 +103,30 @@ export async function POST(request: Request) {
     );
   }
 
-  const bookmarks = parseNaverBookmarks(data);
+  const allBookmarks = parseNaverBookmarks(data);
+
+  // Filter out closed places
+  const openBookmarks = allBookmarks.filter((b) => !b.closed);
+  const closedCount = allBookmarks.length - openBookmarks.length;
+  if (closedCount > 0) {
+    const closedNames = allBookmarks.filter((b) => b.closed).map((b) => b.displayname);
+    console.log(`[Naver Import] Skipping ${closedCount} closed place(s):`, closedNames);
+  }
+
   const folder = resp.folder as Record<string, unknown> | undefined;
   const folderName =
     typeof resp.folderName === "string" ? resp.folderName :
     (folder && typeof folder.name === "string") ? folder.name : null;
 
   return NextResponse.json({
-    bookmarks: bookmarks.map((b) => ({
+    bookmarks: openBookmarks.map((b) => ({
       displayname: b.displayname,
       px: b.px,
       py: b.py,
       address: b.address,
     })),
-    totalCount: bookmarks.length,
+    totalCount: openBookmarks.length,
+    closedCount,
     folderName,
   });
 }

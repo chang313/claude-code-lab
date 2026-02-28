@@ -79,9 +79,19 @@ export async function resolveNaverShortUrl(shortCode: string): Promise<string | 
 }
 
 /**
+ * Detect if a Naver bookmark entry represents a closed/unavailable place.
+ * Uses the `available` boolean field from the Naver bookmark API.
+ */
+export function isNaverBookmarkClosed(entry: Record<string, unknown>): boolean {
+  if (entry.available === false) return true;
+  return false;
+}
+
+/**
  * Parse Naver bookmark response. Validates each entry, skips those missing
  * displayname/px/py or with non-numeric coords.
- * Returns only valid bookmarks.
+ * Detects closed places via the `available` field.
+ * Returns only valid bookmarks (including closed ones marked with `closed: true`).
  */
 export function parseNaverBookmarks(response: unknown): NaverBookmark[] {
   if (!response || typeof response !== "object") return [];
@@ -107,12 +117,15 @@ export function parseNaverBookmarks(response: unknown): NaverBookmark[] {
     const py = Number(e.py);
     if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
 
+    const closed = isNaverBookmarkClosed(e);
+
     valid.push({
       displayname: nameStr,
       name: typeof e.name === "string" ? e.name : undefined,
       px,
       py,
       address: typeof e.address === "string" ? (e.address as string) : "",
+      closed,
     });
   }
 

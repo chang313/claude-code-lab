@@ -180,6 +180,7 @@ export interface NaverBookmark {
   px: number;
   py: number;
   address: string;
+  closed?: boolean;
 }
 
 export interface NaverBookmarkResponse {
@@ -203,6 +204,7 @@ export interface ImportResult {
   importedCount: number;
   skippedCount: number;
   invalidCount: number;
+  closedCount: number;
   totalCount: number;
 }
 
