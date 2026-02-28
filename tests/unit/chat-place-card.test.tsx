@@ -43,11 +43,32 @@ describe("ChatPlaceCard", () => {
 
   it("links to place URL when available", () => {
     render(<ChatPlaceCard place={visited} />);
-    const link = screen.getByRole("link");
-    expect(link.getAttribute("href")).toBe(
+    const links = screen.getAllByRole("link");
+    const placeLink = links.find(l => l.getAttribute("href")?.includes("place.map.kakao.com"));
+    expect(placeLink).toBeTruthy();
+    expect(placeLink!.getAttribute("href")).toBe(
       "https://place.map.kakao.com/kakao-1",
     );
-    expect(link.getAttribute("target")).toBe("_blank");
+    expect(placeLink!.getAttribute("target")).toBe("_blank");
+  });
+
+  it("renders navigation button with correct Kakao Map URL", () => {
+    render(<ChatPlaceCard place={visited} />);
+    const links = screen.getAllByRole("link");
+    const navLink = links.find(l => l.getAttribute("href")?.includes("map.kakao.com/link/to/"));
+    expect(navLink).toBeTruthy();
+    expect(navLink!.getAttribute("href")).toBe(
+      "https://map.kakao.com/link/to/맛있는 치킨,37.5,127.05",
+    );
+    expect(navLink!.getAttribute("target")).toBe("_blank");
+  });
+
+  it("renders navigation button even without placeUrl", () => {
+    render(<ChatPlaceCard place={wishlisted} />);
+    const navLink = screen.getByRole("link", { name: /길찾기/ });
+    expect(navLink.getAttribute("href")).toBe(
+      "https://map.kakao.com/link/to/스시 오마카세,37.5,127.05",
+    );
   });
 });
 
