@@ -214,3 +214,71 @@ export function makeNaverPlaceId(py: number, px: number): string {
   const lng = Number(px.toFixed(6));
   return `naver_${lat}_${lng}`;
 }
+
+// === Discover (AI Recommendations) ===
+
+export interface DiscoverItem {
+  kakaoPlaceId: string;
+  name: string;
+  category: string;
+  address: string;
+  lat: number;
+  lng: number;
+  placeUrl: string | null;
+  reason: string;
+  source: "social" | "discovery";
+  savedByCount: number;
+  savedByNames: string[];
+}
+
+export interface DiscoverResponse {
+  recommendations: DiscoverItem[];
+  fallback: boolean;
+}
+
+export interface GroqRecommendation {
+  kakao_place_id: string;
+  reason: string;
+}
+
+export interface GroqResponse {
+  recommendations: GroqRecommendation[];
+}
+
+export interface SocialCandidate {
+  kakaoPlaceId: string;
+  name: string;
+  category: string;
+  address: string;
+  lat: number;
+  lng: number;
+  placeUrl: string | null;
+  savedByCount: number;
+  savedByNames: string[];
+}
+
+export interface DbSocialCandidate {
+  kakao_place_id: string;
+  name: string;
+  category: string;
+  address: string;
+  lat: number;
+  lng: number;
+  place_url: string | null;
+  saved_by_count: number;
+  saved_by_names: string[];
+}
+
+export function mapDbSocialCandidate(row: DbSocialCandidate): SocialCandidate {
+  return {
+    kakaoPlaceId: row.kakao_place_id,
+    name: row.name,
+    category: row.category,
+    address: row.address,
+    lat: row.lat,
+    lng: row.lng,
+    placeUrl: row.place_url,
+    savedByCount: row.saved_by_count,
+    savedByNames: row.saved_by_names,
+  };
+}

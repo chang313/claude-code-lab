@@ -26,4 +26,4 @@ Project rules are in `.claude/rules/`:
 - Supabase Kakao OAuth for authentication, Supabase Postgres with RLS for cloud-synced data
 ## Feature History
 
-See [CHANGELOG.md](CHANGELOG.md) for the full feature history (001–029).
+See [CHANGELOG.md](CHANGELOG.md) for the full feature history (001–031).
