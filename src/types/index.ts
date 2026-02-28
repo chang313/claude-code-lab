@@ -215,6 +215,13 @@ export function makeNaverPlaceId(py: number, px: number): string {
   return `naver_${lat}_${lng}`;
 }
 
+// === Chat Agent types ===
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 // === Discover (AI Recommendations) ===
 
 export interface DiscoverItem {
