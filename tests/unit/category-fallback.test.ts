@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock Kakao API
-const mockSearchByKeyword = vi.fn();
+const mockSearchByCategory = vi.fn();
 vi.mock("@/lib/kakao", () => ({
-  searchByKeyword: (...args: unknown[]) => mockSearchByKeyword(...args),
+  searchByKeyword: vi.fn(),
+  searchByCategory: (...args: unknown[]) => mockSearchByCategory(...args),
 }));
 
 import { findCategoryByCoordinates } from "@/lib/enrichment";
@@ -13,52 +14,112 @@ describe("findCategoryByCoordinates", () => {
     vi.clearAllMocks();
   });
 
-  it("returns category_name when name search finds a result within 50m", async () => {
-    mockSearchByKeyword.mockResolvedValue({
+  it("returns category_name of closest FD6 result within 50m", async () => {
+    mockSearchByCategory.mockResolvedValue({
       documents: [
         {
-          id: "place-1",
-          place_name: "신리성지",
-          category_name: "여행 > 관광,명소 > 성지",
-          place_url: "https://place.map.kakao.com/place-1",
-          x: "126.7712",
-          y: "36.7625",
+          id: "fd6-1",
+          place_name: "근처식당",
+          category_name: "음식점 > 한식 > 육류,고기",
+          place_url: "https://place.map.kakao.com/fd6-1",
+          x: "127.0276",
+          y: "37.4979",
           distance: "30",
           address_name: "",
           road_address_name: "",
-          category_group_name: "",
+          category_group_name: "음식점",
         },
       ],
       meta: { total_count: 1, pageable_count: 1, is_end: true },
     });
 
-    const result = await findCategoryByCoordinates(36.7625, 126.7712, "신리성지");
-    expect(result).toBe("여행 > 관광,명소 > 성지");
-    expect(mockSearchByKeyword).toHaveBeenCalledWith(
-      expect.objectContaining({ query: "신리성지", radius: 50 }),
+    const result = await findCategoryByCoordinates(37.4979, 127.0276);
+    expect(result).toBe("음식점 > 한식 > 육류,고기");
+    expect(mockSearchByCategory).toHaveBeenCalledWith(
+      expect.objectContaining({ categoryGroupCode: "FD6" }),
     );
   });
 
-  it("returns null when name search returns no results", async () => {
-    mockSearchByKeyword.mockResolvedValue({
-      documents: [],
-      meta: { total_count: 0, pageable_count: 0, is_end: true },
+  it("prefers FD6 over CE7 when FD6 has results", async () => {
+    mockSearchByCategory.mockResolvedValue({
+      documents: [
+        {
+          id: "fd6-2",
+          place_name: "음식점A",
+          category_name: "음식점 > 중식",
+          place_url: "",
+          x: "127.0276",
+          y: "37.4979",
+          distance: "20",
+          address_name: "",
+          road_address_name: "",
+          category_group_name: "음식점",
+        },
+      ],
+      meta: { total_count: 1, pageable_count: 1, is_end: true },
     });
 
-    const result = await findCategoryByCoordinates(37.4979, 127.0276, "존재하지않는곳");
-    expect(result).toBeNull();
+    const result = await findCategoryByCoordinates(37.4979, 127.0276);
+    expect(result).toBe("음식점 > 중식");
+    expect(mockSearchByCategory).toHaveBeenCalledTimes(1);
   });
 
-  it("returns null when no name is provided", async () => {
+  it("falls back to CE7 when FD6 returns no results", async () => {
+    mockSearchByCategory
+      .mockResolvedValueOnce({
+        documents: [],
+        meta: { total_count: 0, pageable_count: 0, is_end: true },
+      })
+      .mockResolvedValueOnce({
+        documents: [
+          {
+            id: "ce7-1",
+            place_name: "카페B",
+            category_name: "음식점 > 카페",
+            place_url: "",
+            x: "127.0276",
+            y: "37.4979",
+            distance: "25",
+            address_name: "",
+            road_address_name: "",
+            category_group_name: "카페",
+          },
+        ],
+        meta: { total_count: 1, pageable_count: 1, is_end: true },
+      });
+
+    const result = await findCategoryByCoordinates(37.4979, 127.0276);
+    expect(result).toBe("음식점 > 카페");
+    expect(mockSearchByCategory).toHaveBeenCalledTimes(2);
+    expect(mockSearchByCategory).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ categoryGroupCode: "FD6" }),
+    );
+    expect(mockSearchByCategory).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ categoryGroupCode: "CE7" }),
+    );
+  });
+
+  it("returns null when no results within 50m", async () => {
+    mockSearchByCategory
+      .mockResolvedValueOnce({
+        documents: [],
+        meta: { total_count: 0, pageable_count: 0, is_end: true },
+      })
+      .mockResolvedValueOnce({
+        documents: [],
+        meta: { total_count: 0, pageable_count: 0, is_end: true },
+      });
+
     const result = await findCategoryByCoordinates(37.4979, 127.0276);
     expect(result).toBeNull();
-    expect(mockSearchByKeyword).not.toHaveBeenCalled();
   });
 
   it("returns null on API error", async () => {
-    mockSearchByKeyword.mockRejectedValue(new Error("API error"));
+    mockSearchByCategory.mockRejectedValue(new Error("API error"));
 
-    const result = await findCategoryByCoordinates(37.4979, 127.0276, "맛집");
+    const result = await findCategoryByCoordinates(37.4979, 127.0276);
     expect(result).toBeNull();
   });
 });

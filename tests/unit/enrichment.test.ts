@@ -15,6 +15,11 @@ import {
   normalizeName,
   stripSuffix,
   enrichBatch,
+  tokenize,
+  tokenOverlapScore,
+  isNameMatch,
+  extractCoreName,
+  findNearestByCoordinates,
 } from "@/lib/enrichment";
 
 describe("normalizeName", () => {
@@ -285,29 +290,29 @@ describe("enrichBatch — coordinate fallback integration", () => {
 
   it("updates ONLY category when findKakaoMatch returns null but coordinate fallback succeeds", async () => {
     // Tier 1: findKakaoMatch → no results (name match fails)
-    mockSearchByKeyword
-      .mockResolvedValueOnce({
-        documents: [],
-        meta: { total_count: 0, pageable_count: 0, is_end: true },
-      })
-      // Tier 2: coordinate fallback with name → returns nearby match
-      .mockResolvedValueOnce({
-        documents: [
-          {
-            id: "nearby-1",
-            place_name: "근처식당",
-            category_name: "음식점 > 일식",
-            place_url: "https://place.map.kakao.com/nearby-1",
-            x: "127.0276",
-            y: "37.4979",
-            distance: "30",
-            address_name: "",
-            road_address_name: "",
-            category_group_name: "음식점",
-          },
-        ],
-        meta: { total_count: 1, pageable_count: 1, is_end: true },
-      });
+    mockSearchByKeyword.mockResolvedValue({
+      documents: [],
+      meta: { total_count: 0, pageable_count: 0, is_end: true },
+    });
+
+    // Tier 2: coordinate fallback via searchByCategory → returns nearby (non-name-matching) place
+    mockSearchByCategory.mockResolvedValue({
+      documents: [
+        {
+          id: "nearby-1",
+          place_name: "근처식당",
+          category_name: "음식점 > 일식",
+          place_url: "https://place.map.kakao.com/nearby-1",
+          x: "127.0276",
+          y: "37.4979",
+          distance: "30",
+          address_name: "",
+          road_address_name: "",
+          category_group_name: "음식점",
+        },
+      ],
+      meta: { total_count: 1, pageable_count: 1, is_end: true },
+    });
 
     // Track DB updates
     const updateCalls: Array<Record<string, unknown>> = [];
@@ -579,6 +584,264 @@ describe("enrichBatch — address matching integration", () => {
     expect(updateCalls[0]).toHaveProperty(
       "place_url",
       "https://place.map.kakao.com/addr-enriched",
+    );
+    expect(result.enrichedCount).toBe(1);
+  });
+});
+
+describe("tokenize", () => {
+  it("splits on whitespace", () => {
+    expect(tokenize("맛집 돈까스")).toEqual(["맛집", "돈까스"]);
+  });
+
+  it("splits on Korean/non-Korean transitions", () => {
+    expect(tokenize("스타벅스Reserve")).toEqual(["스타벅스", "reserve"]);
+  });
+
+  it("lowercases all tokens", () => {
+    expect(tokenize("KFC 강남")).toEqual(["kfc", "강남"]);
+  });
+
+  it("strips known suffixes before tokenizing", () => {
+    expect(tokenize("스타벅스 강남역점")).toEqual(["스타벅스", "강남"]);
+  });
+
+  it("handles single-token names", () => {
+    expect(tokenize("스타벅스")).toEqual(["스타벅스"]);
+  });
+
+  it("handles mixed Korean and English with spaces", () => {
+    expect(tokenize("Burger King 강남")).toEqual(["burger", "king", "강남"]);
+  });
+});
+
+describe("tokenOverlapScore", () => {
+  it("returns 1.0 for identical token sets", () => {
+    expect(tokenOverlapScore(["a", "b"], ["a", "b"])).toBe(1.0);
+  });
+
+  it("returns 0 when no overlap", () => {
+    expect(tokenOverlapScore(["a", "b"], ["c", "d"])).toBe(0);
+  });
+
+  it("returns ratio relative to smaller set", () => {
+    // 1 common out of min(2, 3) = 2 → 0.5
+    expect(tokenOverlapScore(["a", "b"], ["a", "c", "d"])).toBe(0.5);
+  });
+
+  it("returns 0 for empty arrays", () => {
+    expect(tokenOverlapScore([], ["a"])).toBe(0);
+    expect(tokenOverlapScore(["a"], [])).toBe(0);
+  });
+});
+
+describe("isNameMatch", () => {
+  it("matches substring (existing behavior)", () => {
+    expect(isNameMatch("스타벅스 강남점", "스타벅스")).toBe(true);
+  });
+
+  it("matches reordered tokens via token overlap", () => {
+    expect(isNameMatch("맛집 돈까스", "돈까스 맛집")).toBe(true);
+  });
+
+  it("rejects completely different names", () => {
+    expect(isNameMatch("맛집A", "완전다른가게")).toBe(false);
+  });
+
+  it("matches partial token overlap >= 0.6", () => {
+    // 2 common tokens ("스타벅스", "리저브") out of min(2, 2) = 2 → 1.0
+    expect(isNameMatch("스타벅스 리저브", "스타벅스 리저브 청담")).toBe(true);
+  });
+});
+
+describe("extractCoreName", () => {
+  it("returns first token for multi-token names", () => {
+    expect(extractCoreName("스타벅스 강남역점")).toBe("스타벅스");
+  });
+
+  it("returns null for single-token names", () => {
+    expect(extractCoreName("스타벅스")).toBeNull();
+  });
+
+  it("returns null when first token is < 2 chars", () => {
+    expect(extractCoreName("A 맛집")).toBeNull();
+  });
+
+  it("returns null for English brand with location suffix (single token after strip)", () => {
+    // "KFC 강남점" → stripSuffix → "KFC " → tokenize → ["kfc"] → single token → null
+    expect(extractCoreName("KFC 강남점")).toBeNull();
+  });
+
+  it("returns core name for multi-word English brand", () => {
+    expect(extractCoreName("Burger King 강남")).toBe("burger");
+  });
+});
+
+describe("findKakaoMatch — Tier 1b (core name retry)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("retries with core name when full name returns no match", async () => {
+    const emptyResult = {
+      documents: [],
+      meta: { total_count: 0, pageable_count: 0, is_end: true },
+    };
+
+    const coreNameResult = {
+      documents: [
+        {
+          id: "core-match",
+          place_name: "스타벅스",
+          category_name: "음식점 > 카페",
+          place_url: "https://place.map.kakao.com/core-match",
+          x: "127.0276",
+          y: "37.4979",
+          distance: "20",
+          address_name: "",
+          road_address_name: "",
+          category_group_name: "카페",
+        },
+      ],
+      meta: { total_count: 1, pageable_count: 1, is_end: true },
+    };
+
+    mockSearchByKeyword
+      .mockResolvedValueOnce(emptyResult) // Tier 1: full name search
+      .mockResolvedValueOnce(coreNameResult); // Tier 1b: core name retry
+
+    const result = await findKakaoMatch("스타벅스 리저브 청담", 37.4979, 127.0276);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("core-match");
+    expect(mockSearchByKeyword).toHaveBeenCalledTimes(2);
+    // Tier 1b should search with just the core name
+    expect(mockSearchByKeyword.mock.calls[1][0].query).toBe("스타벅스");
+  });
+
+  it("does not retry for single-token names", async () => {
+    mockSearchByKeyword.mockResolvedValue({
+      documents: [],
+      meta: { total_count: 0, pageable_count: 0, is_end: true },
+    });
+
+    const result = await findKakaoMatch("스타벅스", 37.4979, 127.0276);
+    expect(result).toBeNull();
+    // Only 1 call (no Tier 1b retry since extractCoreName returns null)
+    expect(mockSearchByKeyword).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("findNearestByCoordinates", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns full KakaoPlace from FD6 results", async () => {
+    mockSearchByCategory.mockResolvedValue({
+      documents: [
+        {
+          id: "fd6-place",
+          place_name: "근처식당",
+          category_name: "음식점 > 한식",
+          place_url: "https://place.map.kakao.com/fd6-place",
+          x: "127.0276",
+          y: "37.4979",
+          distance: "30",
+          address_name: "",
+          road_address_name: "",
+          category_group_name: "음식점",
+        },
+      ],
+      meta: { total_count: 1, pageable_count: 1, is_end: true },
+    });
+
+    const result = await findNearestByCoordinates(37.4979, 127.0276);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("fd6-place");
+    expect(result!.place_name).toBe("근처식당");
+    expect(result!.place_url).toBe("https://place.map.kakao.com/fd6-place");
+  });
+
+  it("returns null when no results", async () => {
+    mockSearchByCategory.mockResolvedValue({
+      documents: [],
+      meta: { total_count: 0, pageable_count: 0, is_end: true },
+    });
+
+    const result = await findNearestByCoordinates(37.4979, 127.0276);
+    expect(result).toBeNull();
+  });
+});
+
+describe("enrichBatch — Tier 2 name-match promotion", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("promotes to full update when Tier 2 nearest place name matches", async () => {
+    // All keyword searches fail (Tier 1, 1b, 1.5)
+    mockSearchByKeyword.mockResolvedValue({
+      documents: [],
+      meta: { total_count: 0, pageable_count: 0, is_end: true },
+    });
+
+    // Tier 2: nearest place has matching name
+    mockSearchByCategory.mockResolvedValue({
+      documents: [
+        {
+          id: "promoted-place",
+          place_name: "맛집A",
+          category_name: "음식점 > 한식",
+          place_url: "https://place.map.kakao.com/promoted",
+          x: "127.0276",
+          y: "37.4979",
+          distance: "20",
+          address_name: "",
+          road_address_name: "",
+          category_group_name: "음식점",
+        },
+      ],
+      meta: { total_count: 1, pageable_count: 1, is_end: true },
+    });
+
+    const updateCalls: Array<Record<string, unknown>> = [];
+    const mockSupabase = {
+      from: () => ({
+        update: (data: Record<string, unknown>) => {
+          updateCalls.push(data);
+          return {
+            eq: (_col: string, _val: string) => ({
+              eq: (_col2: string, _val2: string) =>
+                Promise.resolve({ data: null, error: null }),
+              then: (resolve: (v: unknown) => void) =>
+                resolve({ data: null, error: null }),
+            }),
+          };
+        },
+      }),
+    };
+
+    const result = await enrichBatch(
+      null,
+      [
+        {
+          kakao_place_id: "naver_37.4979_127.0276",
+          name: "맛집A",
+          lat: 37.4979,
+          lng: 127.0276,
+        },
+      ],
+      mockSupabase,
+      "user-123",
+    );
+
+    // Full update with all three fields (promoted)
+    expect(updateCalls.length).toBe(1);
+    expect(updateCalls[0]).toHaveProperty("kakao_place_id", "promoted-place");
+    expect(updateCalls[0]).toHaveProperty("category", "음식점 > 한식");
+    expect(updateCalls[0]).toHaveProperty(
+      "place_url",
+      "https://place.map.kakao.com/promoted",
     );
     expect(result.enrichedCount).toBe(1);
   });
