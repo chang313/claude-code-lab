@@ -205,6 +205,19 @@ describe("useAddFromFriend", () => {
     });
 
     expect(success).toBe(false);
+    expect(invalidateCalls).toHaveLength(0);
+  });
+
+  it("throws on non-duplicate insert errors", async () => {
+    mockInsertResult = { error: { code: "23503", message: "foreign key violation" } };
+    const { result } = renderHook(() => useAddFromFriend());
+
+    await expect(
+      act(async () => {
+        await result.current.addFromFriend(friendRestaurant);
+      }),
+    ).rejects.toEqual({ code: "23503", message: "foreign key violation" });
+    expect(invalidateCalls).toHaveLength(0);
   });
 
   it("returns false when not authenticated", async () => {
@@ -218,6 +231,7 @@ describe("useAddFromFriend", () => {
 
     expect(success).toBe(false);
     expect(insertCalls).toHaveLength(0);
+    expect(invalidateCalls).toHaveLength(0);
   });
 });
 
