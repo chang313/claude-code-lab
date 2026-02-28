@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 
 // Mock fetch
 const mockFetch = vi.fn();
@@ -10,103 +10,94 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
-// Mock supabase client (for add-to-wishlist)
-vi.mock("@/lib/supabase/client", () => ({
-  createClient: () => ({
-    auth: {
-      getUser: vi.fn(async () => ({
-        data: { user: { id: "user-1" } },
-        error: null,
-      })),
-    },
-    from: vi.fn(() => ({
-      insert: vi.fn(() => ({
-        then: (resolve: (v: unknown) => void) =>
-          resolve({ data: null, error: null }),
-      })),
-    })),
-  }),
+// Mock useWishlist
+const mockWishlist = vi.fn();
+vi.mock("@/db/hooks", () => ({
+  useWishlist: () => mockWishlist(),
 }));
 
-// Mock invalidate
+// Mock supabase
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({}),
+}));
 vi.mock("@/lib/supabase/invalidate", () => ({
   invalidate: vi.fn(),
   invalidateByPrefix: vi.fn(),
 }));
 
 import DiscoverPage from "@/app/discover/page";
-import type { DiscoverResponse } from "@/types";
 
-describe("DiscoverPage", () => {
+describe("DiscoverPage (Chat Agent)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it("shows loading state initially", () => {
-    mockFetch.mockReturnValue(new Promise(() => {})); // never resolves
-    render(<DiscoverPage />);
-
-    expect(screen.getByText("추천 맛집 찾는 중...")).toBeTruthy();
-  });
-
-  it("renders recommendations on success", async () => {
-    const response: DiscoverResponse = {
-      recommendations: [
+    mockWishlist.mockReturnValue({
+      restaurants: [
         {
-          kakaoPlaceId: "kakao-1",
-          name: "맛있는 치킨",
-          category: "치킨",
-          address: "강남",
+          id: "kakao-1",
+          name: "치킨집",
+          category: "음식점 > 치킨",
+          address: "서울",
           lat: 37.5,
           lng: 127.05,
-          placeUrl: null,
-          reason: "친구 3명이 저장",
-          source: "social",
-          savedByCount: 3,
-          savedByNames: ["김철수"],
+          starRating: 4,
+          createdAt: "2024-01-01",
+        },
+        {
+          id: "kakao-2",
+          name: "스시집",
+          category: "음식점 > 일식",
+          address: "서울",
+          lat: 37.51,
+          lng: 127.06,
+          starRating: null,
+          createdAt: "2024-01-02",
+        },
+        {
+          id: "kakao-3",
+          name: "카페",
+          category: "카페",
+          address: "서울",
+          lat: 37.52,
+          lng: 127.07,
+          starRating: 3,
+          createdAt: "2024-01-03",
         },
       ],
-      fallback: false,
-    };
-
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => response,
+      isLoading: false,
     });
-
-    await act(async () => {
-      render(<DiscoverPage />);
-    });
-
-    expect(screen.getByText("맛있는 치킨")).toBeTruthy();
-    expect(screen.getByText("친구 3명이 저장")).toBeTruthy();
   });
 
-  it("shows empty state when no recommendations", async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ recommendations: [], fallback: false }),
-    });
+  it("shows suggested prompts on empty conversation", () => {
+    render(<DiscoverPage />);
+    expect(screen.getByText("오늘 뭐 먹지?")).toBeTruthy();
+    expect(screen.getByText("매운 거 추천해줘")).toBeTruthy();
+  });
 
-    await act(async () => {
-      render(<DiscoverPage />);
-    });
+  it("renders chat input", () => {
+    render(<DiscoverPage />);
+    expect(screen.getByPlaceholderText("무엇이 먹고 싶으세요?")).toBeTruthy();
+  });
 
+  it("shows minimum places message when < 3 places saved", () => {
+    mockWishlist.mockReturnValue({ restaurants: [], isLoading: false });
+    render(<DiscoverPage />);
     expect(
-      screen.getByText("추천을 생성하려면 맛집을 더 저장해보세요"),
+      screen.getByText(/맛집을 3개 이상 저장/),
     ).toBeTruthy();
   });
 
-  it("shows error state on fetch failure", async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 500,
-    });
+  it("sends message on form submit", async () => {
+    mockFetch.mockReturnValue(new Promise(() => {})); // never resolves (streaming)
+
+    render(<DiscoverPage />);
+    const input = screen.getByPlaceholderText("무엇이 먹고 싶으세요?");
 
     await act(async () => {
-      render(<DiscoverPage />);
+      fireEvent.change(input, { target: { value: "치킨 추천해줘" } });
+      fireEvent.submit(input.closest("form")!);
     });
 
-    expect(screen.getByText("추천 생성에 실패했습니다")).toBeTruthy();
+    // User message should appear
+    expect(screen.getByText("치킨 추천해줘")).toBeTruthy();
   });
 });
