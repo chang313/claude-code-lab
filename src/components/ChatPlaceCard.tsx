@@ -22,13 +22,21 @@ export function buildKakaoNavUrl(name: string, lat: number, lng: number): string
 export default function ChatPlaceCard({ place }: ChatPlaceCardProps) {
   const navUrl = buildKakaoNavUrl(place.name, place.lat, place.lng);
 
-  const card = (
+  return (
     <div className="my-2 bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h4 className="font-semibold text-sm text-gray-900 truncate">
-            {place.name}
-          </h4>
+          {place.placeUrl ? (
+            <a href={place.placeUrl} target="_blank" rel="noopener noreferrer" className="block">
+              <h4 className="font-semibold text-sm text-gray-900 truncate hover:text-blue-600">
+                {place.name}
+              </h4>
+            </a>
+          ) : (
+            <h4 className="font-semibold text-sm text-gray-900 truncate">
+              {place.name}
+            </h4>
+          )}
           <p className="text-xs text-gray-500">{getSubcategory(place.category)}</p>
           <p className="text-xs text-gray-400 truncate">{place.address}</p>
         </div>
@@ -46,7 +54,6 @@ export default function ChatPlaceCard({ place }: ChatPlaceCardProps) {
             href={navUrl}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
             className="text-blue-500 hover:text-blue-700 p-1"
             aria-label="길찾기"
             title="길찾기"
@@ -59,14 +66,4 @@ export default function ChatPlaceCard({ place }: ChatPlaceCardProps) {
       </div>
     </div>
   );
-
-  if (place.placeUrl) {
-    return (
-      <a href={place.placeUrl} target="_blank" rel="noopener noreferrer">
-        {card}
-      </a>
-    );
-  }
-
-  return card;
 }
