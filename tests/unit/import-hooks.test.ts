@@ -18,6 +18,24 @@ vi.mock("@/lib/supabase/use-query", () => ({
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
+const mockStartFetching = vi.fn();
+const mockStartSaving = vi.fn();
+const mockStartEnriching = vi.fn();
+const mockComplete = vi.fn();
+const mockFail = vi.fn();
+
+vi.mock("@/contexts/ImportStatusContext", () => ({
+  useImportStatus: () => ({
+    phase: { status: "idle" },
+    startFetching: mockStartFetching,
+    startSaving: mockStartSaving,
+    startEnriching: mockStartEnriching,
+    complete: mockComplete,
+    fail: mockFail,
+    dismiss: vi.fn(),
+  }),
+}));
+
 import { useNaverImport } from "@/db/import-hooks";
 
 describe("useNaverImport", () => {
@@ -149,5 +167,65 @@ describe("useNaverImport", () => {
     });
 
     expect(result.current.error).toBe("이 폴더에 저장된 장소가 없습니다.");
+  });
+
+  it("calls context setters during import flow", async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            bookmarks: [
+              { displayname: "맛집", px: 127.0, py: 37.5, address: "서울" },
+              { displayname: "카페", px: 127.1, py: 37.6, address: "부산" },
+            ],
+            totalCount: 2,
+            folderName: "폴더",
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            batchId: "batch-ctx",
+            importedCount: 2,
+            skippedCount: 0,
+            invalidCount: 0,
+            totalCount: 2,
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ status: "started" }),
+      });
+
+    const { result } = renderHook(() => useNaverImport());
+
+    await act(async () => {
+      await result.current.importFromNaver("ctx-test");
+    });
+
+    expect(mockStartFetching).toHaveBeenCalledOnce();
+    expect(mockStartSaving).toHaveBeenCalledWith(2);
+    expect(mockStartEnriching).toHaveBeenCalledWith("batch-ctx");
+  });
+
+  it("calls fail on context when naver fetch fails", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      json: () =>
+        Promise.resolve({
+          message: "가져오기 실패",
+        }),
+    });
+
+    const { result } = renderHook(() => useNaverImport());
+
+    await act(async () => {
+      await result.current.importFromNaver("fail-test");
+    });
+
+    expect(mockStartFetching).toHaveBeenCalledOnce();
+    expect(mockFail).toHaveBeenCalledWith("가져오기 실패");
   });
 });
