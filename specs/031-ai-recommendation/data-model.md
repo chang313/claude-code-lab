@@ -25,11 +25,11 @@ LANGUAGE sql
 SECURITY DEFINER
 AS $$
   WITH mutual AS (
-    SELECT f1.following_id AS friend_id
+    SELECT f1.followed_id AS friend_id
     FROM follows f1
     JOIN follows f2
-      ON f1.following_id = f2.follower_id
-      AND f2.following_id = f1.follower_id
+      ON f1.followed_id = f2.follower_id
+      AND f2.followed_id = f1.follower_id
     WHERE f1.follower_id = target_user_id
   ),
   friend_restaurants AS (
