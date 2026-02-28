@@ -82,4 +82,72 @@ describe("ImportStatusContext", () => {
     act(() => result.current.dismiss());
     expect(result.current.phase.status).toBe("idle");
   });
+
+  it("polls and transitions to completed when enrichment finishes", async () => {
+    vi.useFakeTimers();
+
+    // Mount: return empty batches
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ batches: [] }),
+    });
+
+    const { result } = renderHook(() => useImportStatus(), { wrapper });
+
+    // Start enriching
+    act(() => result.current.startEnriching("poll-batch"));
+    expect(result.current.phase.status).toBe("enriching");
+
+    // Mock poll response: enrichment completed
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          batches: [
+            {
+              id: "poll-batch",
+              enrichmentStatus: "completed",
+              importedCount: 8,
+            },
+          ],
+        }),
+    });
+
+    // Advance timer to trigger poll
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    expect(result.current.phase).toEqual({
+      status: "completed",
+      importedCount: 8,
+    });
+
+    vi.useRealTimers();
+  });
+
+  it("recovers running batch on mount", async () => {
+    // Mount: return a running batch
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          batches: [
+            { id: "recover-batch", enrichmentStatus: "running" },
+          ],
+        }),
+    });
+
+    const { result } = renderHook(() => useImportStatus(), { wrapper });
+
+    // Wait for the useEffect recovery to complete
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(result.current.phase).toEqual({
+      status: "enriching",
+      batchId: "recover-batch",
+    });
+  });
 });
