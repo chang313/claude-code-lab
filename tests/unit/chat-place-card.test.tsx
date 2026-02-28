@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import ChatPlaceCard from "@/components/ChatPlaceCard";
+import ChatPlaceCard, { buildKakaoNavUrl } from "@/components/ChatPlaceCard";
 import type { Restaurant } from "@/types";
 
 const visited: Restaurant = {
@@ -48,5 +48,21 @@ describe("ChatPlaceCard", () => {
       "https://place.map.kakao.com/kakao-1",
     );
     expect(link.getAttribute("target")).toBe("_blank");
+  });
+});
+
+describe("buildKakaoNavUrl", () => {
+  it("constructs navigation URL with encoded name", () => {
+    const url = buildKakaoNavUrl("맛있는 치킨", 37.5, 127.05);
+    expect(url).toBe(
+      "https://map.kakao.com/link/to/맛있는 치킨,37.5,127.05",
+    );
+  });
+
+  it("encodes special characters in name", () => {
+    const url = buildKakaoNavUrl("Bob's Burger & Grill", 37.123, 127.456);
+    expect(url).toBe(
+      "https://map.kakao.com/link/to/Bob's Burger & Grill,37.123,127.456",
+    );
   });
 });

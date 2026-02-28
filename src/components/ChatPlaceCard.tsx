@@ -15,6 +15,10 @@ function renderStars(rating: number): string {
   return "★".repeat(rating) + "☆".repeat(5 - rating);
 }
 
+export function buildKakaoNavUrl(name: string, lat: number, lng: number): string {
+  return `https://map.kakao.com/link/to/${name},${lat},${lng}`;
+}
+
 export default function ChatPlaceCard({ place }: ChatPlaceCardProps) {
   const card = (
     <div className="my-2 bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
