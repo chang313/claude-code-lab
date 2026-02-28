@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { invalidate } from "@/lib/supabase/invalidate";
+import { useImportStatus } from "@/contexts/ImportStatusContext";
 import type { ImportResult } from "@/types";
 
 const RESTAURANTS_KEY = "restaurants";
@@ -33,11 +34,13 @@ export function useNaverImport() {
     total: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const importStatus = useImportStatus();
 
   const importFromNaver = async (rawInput: string): Promise<ImportResult | null> => {
     setIsImporting(true);
     setError(null);
     setProgress(null);
+    importStatus.startFetching();
 
     try {
       // Step 1: Fetch bookmarks from Naver via API proxy
@@ -53,17 +56,21 @@ export function useNaverImport() {
         const message =
           errData?.message ?? "가져오기에 실패했습니다. 다시 시도해주세요.";
         setError(message);
+        importStatus.fail(message);
         return null;
       }
 
       const naverData: NaverFetchResponse = await fetchRes.json();
 
       if (naverData.bookmarks.length === 0) {
-        setError("이 폴더에 저장된 장소가 없습니다.");
+        const msg = "이 폴더에 저장된 장소가 없습니다.";
+        setError(msg);
+        importStatus.fail(msg);
         return null;
       }
 
       setProgress({ current: 0, total: naverData.bookmarks.length });
+      importStatus.startSaving(naverData.bookmarks.length);
 
       // Step 2: Save bookmarks to DB
       const bookmarks = naverData.bookmarks.map((b) => ({
@@ -86,7 +93,9 @@ export function useNaverImport() {
 
       if (!saveRes.ok) {
         const errData = await saveRes.json().catch(() => null);
-        setError(errData?.message ?? "저장에 실패했습니다.");
+        const msg = errData?.message ?? "저장에 실패했습니다.";
+        setError(msg);
+        importStatus.fail(msg);
         return null;
       }
 
@@ -97,6 +106,7 @@ export function useNaverImport() {
 
       // Step 3: Fire-and-forget enrichment
       if (result.batchId && result.importedCount > 0) {
+        importStatus.startEnriching(result.batchId);
         fetch("/api/import/enrich", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -104,11 +114,15 @@ export function useNaverImport() {
         }).catch(() => {
           // Enrichment failure is non-blocking
         });
+      } else {
+        importStatus.complete(result.importedCount);
       }
 
       return result;
     } catch {
-      setError("네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.");
+      const msg = "네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.";
+      setError(msg);
+      importStatus.fail(msg);
       return null;
     } finally {
       setIsImporting(false);
