@@ -16,10 +16,10 @@ export function stripSuffix(name: string): string {
   return name.replace(/[\uAC00-\uD7A3]{1,4}점$/, "");
 }
 
-/** Normalize a name for comparison: strip whitespace, lowercase, strip Korean suffixes. */
+/** Normalize a name for comparison: strip Korean suffixes (with whitespace as boundary), then collapse whitespace and lowercase. */
 export function normalizeName(name: string): string {
-  const base = name.replace(/\s+/g, "").toLowerCase();
-  return stripSuffix(base);
+  const stripped = stripSuffix(name.trim());
+  return stripped.replace(/\s+/g, "").toLowerCase();
 }
 
 /** Split a name into tokens: whitespace boundaries + Korean/non-Korean transitions, lowercased, suffixes stripped. */
