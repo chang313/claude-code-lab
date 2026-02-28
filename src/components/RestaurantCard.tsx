@@ -22,6 +22,8 @@ interface RestaurantCardProps {
   onClick?: () => void;
   onRecommend?: () => void;
   onMoveToWishlist?: () => void;
+  onSaveToMyWishlist?: () => void;
+  isSavedToMyWishlist?: boolean;
 }
 
 export default function RestaurantCard({
@@ -38,6 +40,8 @@ export default function RestaurantCard({
   onClick,
   onRecommend,
   onMoveToWishlist,
+  onSaveToMyWishlist,
+  isSavedToMyWishlist,
 }: RestaurantCardProps) {
   const isSaved = savedStatus != null || isWishlisted;
 
@@ -175,6 +179,22 @@ export default function RestaurantCard({
               </button>
             )}
           </div>
+        )}
+
+        {/* Save to my wishlist (other user's profile) */}
+        {onSaveToMyWishlist && (
+          isSavedToMyWishlist ? (
+            <span className="text-sm font-medium text-pink-500">♡ 저장됨</span>
+          ) : (
+            <button
+              onClick={onSaveToMyWishlist}
+              disabled={isAdding}
+              className={`px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors${isAdding ? " opacity-50 pointer-events-none" : ""}`}
+              aria-label={`${restaurant.name} 내 위시리스트에 추가`}
+            >
+              {isAdding ? "…" : "+ 내 위시리스트에 추가"}
+            </button>
+          )
         )}
       </div>
     </div>

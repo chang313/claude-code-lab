@@ -1,11 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useProfileWithCounts, useUserVisitedGrouped, useUserWishlistGrouped } from "@/db/profile-hooks";
+import { useRestaurantStatusMap } from "@/db/search-hooks";
+import { useAddFromFriend } from "@/db/hooks";
 import ProfileHeader from "@/components/ProfileHeader";
 import CategoryAccordion from "@/components/CategoryAccordion";
 import RestaurantCard from "@/components/RestaurantCard";
 import FollowTabs from "@/components/FollowTabs";
+import Toast from "@/components/Toast";
+import type { Restaurant } from "@/types";
 
 interface UserProfileViewProps {
   userId: string;
@@ -27,6 +32,35 @@ export default function UserProfileView({
   const visitedCount = visitedGroups.reduce((sum, g) => sum + g.count, 0);
   const wishlistCount = wishlistGroups.reduce((sum, g) => sum + g.count, 0);
   const bothEmpty = visitedCount === 0 && wishlistCount === 0;
+
+  // Collect all place IDs from friend's restaurants for batch saved-check
+  const allPlaceIds = isOwnProfile
+    ? []
+    : [
+        ...visitedGroups.flatMap((g) => g.restaurants.map((r) => r.id)),
+        ...wishlistGroups.flatMap((g) => g.restaurants.map((r) => r.id)),
+      ];
+  const savedStatusMap = useRestaurantStatusMap(allPlaceIds);
+  const { addFromFriend } = useAddFromFriend();
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const handleSaveToMyWishlist = async (restaurant: Restaurant) => {
+    if (addingId) return; // prevent double-tap
+    setAddingId(restaurant.id);
+    try {
+      const success = await addFromFriend(restaurant);
+      if (success) {
+        setToast({ message: "내 위시리스트에 추가되었습니다", type: "success" });
+      } else {
+        setToast({ message: "이미 저장된 맛집입니다", type: "success" });
+      }
+    } catch {
+      setToast({ message: "추가에 실패했습니다", type: "error" });
+    } finally {
+      setAddingId(null);
+    }
+  };
 
   if (profileLoading) {
     return (
@@ -110,6 +144,11 @@ export default function UserProfileView({
                           key={restaurant.id}
                           restaurant={restaurant}
                           variant="visited"
+                          {...(!isOwnProfile && {
+                            onSaveToMyWishlist: () => handleSaveToMyWishlist(restaurant),
+                            isSavedToMyWishlist: savedStatusMap.has(restaurant.id),
+                            isAdding: addingId === restaurant.id,
+                          })}
                         />
                       ))}
                     </CategoryAccordion>
@@ -151,6 +190,11 @@ export default function UserProfileView({
                           key={restaurant.id}
                           restaurant={restaurant}
                           variant="wishlist"
+                          {...(!isOwnProfile && {
+                            onSaveToMyWishlist: () => handleSaveToMyWishlist(restaurant),
+                            isSavedToMyWishlist: savedStatusMap.has(restaurant.id),
+                            isAdding: addingId === restaurant.id,
+                          })}
                         />
                       ))}
                     </CategoryAccordion>
@@ -161,6 +205,14 @@ export default function UserProfileView({
           </div>
         )}
       </FollowTabs>
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onDismiss={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

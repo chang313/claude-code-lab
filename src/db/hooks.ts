@@ -149,19 +149,42 @@ export function useRestaurant(kakaoPlaceId: string) {
   return { restaurant: data, isLoading };
 }
 
+async function insertRestaurantRow(row: {
+  kakao_place_id: string;
+  name: string;
+  address: string;
+  category: string;
+  lat: number;
+  lng: number;
+  place_url: string | null;
+  star_rating: number | null;
+}): Promise<boolean> {
+  const supabase = getSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { error } = await supabase.from("restaurants").insert({
+    user_id: user.id,
+    ...row,
+  });
+
+  if (error) {
+    if (error.code === "23505") return false;
+    throw error;
+  }
+
+  invalidateRestaurants();
+  return true;
+}
+
 export function useAddRestaurant() {
   const addRestaurant = async (
     place: KakaoPlace,
     starRating: number | null = null,
   ): Promise<boolean> => {
-    const supabase = getSupabase();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return false;
-
-    const { error } = await supabase.from("restaurants").insert({
-      user_id: user.id,
+    return insertRestaurantRow({
       kakao_place_id: place.id,
       name: place.place_name,
       address: place.road_address_name || place.address_name,
@@ -171,16 +194,26 @@ export function useAddRestaurant() {
       place_url: place.place_url,
       star_rating: starRating,
     });
-
-    if (error) {
-      if (error.code === "23505") return false; // unique constraint = already exists
-      throw error;
-    }
-
-    invalidateRestaurants();
-    return true;
   };
   return { addRestaurant };
+}
+
+export function useAddFromFriend() {
+  const addFromFriend = async (
+    restaurant: Restaurant,
+  ): Promise<boolean> => {
+    return insertRestaurantRow({
+      kakao_place_id: restaurant.id,
+      name: restaurant.name,
+      address: restaurant.address,
+      category: restaurant.category,
+      lat: restaurant.lat,
+      lng: restaurant.lng,
+      place_url: restaurant.placeUrl ?? null,
+      star_rating: null,
+    });
+  };
+  return { addFromFriend };
 }
 
 export function useRemoveRestaurant(onError?: (msg: string) => void) {
