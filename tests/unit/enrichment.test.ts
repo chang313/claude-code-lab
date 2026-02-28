@@ -752,10 +752,10 @@ describe("nameMatchScore", () => {
     expect(nameMatchScore("맛집  A", "맛집 A")).toBe(1.0);
   });
 
-  it("returns 0.7 for generic suffix via token overlap (normalizeName over-strips)", () => {
-    // normalizeName("스타벅스 강남점") → "스타" (generic regex over-strips without whitespace boundary)
-    // Falls to token overlap: ["스타벅스"] vs ["스타벅스"] → 1.0 * 0.7 = 0.7
-    expect(nameMatchScore("스타벅스 강남점", "스타벅스")).toBeCloseTo(0.7, 2);
+  it("returns 0.85 for generic suffix match (suffix stripped with whitespace boundary)", () => {
+    // normalizeName("스타벅스 강남점") → stripSuffix("스타벅스 강남점") → "스타벅스 " → "스타벅스"
+    // normalizeName("스타벅스") → "스타벅스"  → normalized exact → 0.85
+    expect(nameMatchScore("스타벅스 강남점", "스타벅스")).toBe(0.85);
   });
 
   it("returns 0.85 for normalized exact match (본점 stripped)", () => {
@@ -784,6 +784,28 @@ describe("nameMatchScore", () => {
 
   it("returns 0 for completely different names", () => {
     expect(nameMatchScore("맛집A", "완전다른가게")).toBe(0);
+  });
+
+  it("returns 0.85 for English name with Korean branch suffix", () => {
+    // "KFC 강남점" → stripSuffix → "KFC " → "kfc"
+    // "KFC" → "kfc" → normalized exact
+    expect(nameMatchScore("KFC 강남점", "KFC")).toBe(0.85);
+  });
+
+  it("returns 0.85 for mixed Korean/English with suffix", () => {
+    // "BBQ치킨 강남점" → stripSuffix → "BBQ치킨 " → "bbq치킨"
+    // "BBQ치킨" → "bbq치킨" → normalized exact
+    expect(nameMatchScore("BBQ치킨 강남점", "BBQ치킨")).toBe(0.85);
+  });
+
+  it("returns 1.0 for all-English exact match ignoring case and whitespace", () => {
+    expect(nameMatchScore("Shake Shack", "shake  shack")).toBe(1.0);
+  });
+
+  it("returns proportional score for English substring match", () => {
+    // "starbucksreserve" (16) vs "starbucks" (9) → 9/16=0.5625 < 0.6 → fails substring
+    // Token overlap: ["starbucks","reserve"] vs ["starbucks"] → 1/1 → 0.7
+    expect(nameMatchScore("Starbucks Reserve", "Starbucks")).toBeCloseTo(0.7, 2);
   });
 });
 
