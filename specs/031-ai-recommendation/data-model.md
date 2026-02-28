@@ -41,7 +41,7 @@ AS $$
       r.lat,
       r.lng,
       r.place_url,
-      p.nickname
+      p.display_name
     FROM restaurants r
     JOIN mutual m ON r.user_id = m.friend_id
     JOIN profiles p ON r.user_id = p.id
@@ -58,7 +58,7 @@ AS $$
     fr.lng,
     fr.place_url,
     COUNT(*)::BIGINT AS saved_by_count,
-    ARRAY_AGG(DISTINCT fr.nickname) AS saved_by_names
+    ARRAY_AGG(DISTINCT fr.display_name) AS saved_by_names
   FROM friend_restaurants fr
   GROUP BY fr.kakao_place_id, fr.name, fr.category, fr.address, fr.lat, fr.lng, fr.place_url
   ORDER BY saved_by_count DESC
