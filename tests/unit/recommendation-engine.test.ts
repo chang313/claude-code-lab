@@ -206,7 +206,8 @@ describe("generateRecommendations", () => {
     ];
 
     let fromCallCount = 0;
-    mockFrom.mockImplementation(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockFrom.mockImplementation((): any => {
       fromCallCount++;
       const chain: Record<string, ReturnType<typeof vi.fn>> = {};
       chain.select = vi.fn().mockReturnValue(chain);
@@ -240,7 +241,8 @@ describe("generateRecommendations", () => {
     mockRpc.mockResolvedValue({ data: mockDbSocialCandidates, error: null });
 
     let fromCallCount = 0;
-    mockFrom.mockImplementation(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockFrom.mockImplementation((): any => {
       fromCallCount++;
       const chain: Record<string, ReturnType<typeof vi.fn>> = {};
       chain.select = vi.fn().mockReturnValue(chain);
