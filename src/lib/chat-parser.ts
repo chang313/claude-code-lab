@@ -2,7 +2,7 @@ export type ChatSegment =
   | { type: "text"; content: string }
   | { type: "place"; placeId: string };
 
-const PLACE_MARKER_REGEX = /<<(.+?):([\w-]+)>>/g;
+const PLACE_MARKER_REGEX = /<<(.+?):([\w.-]+)>>/g;
 
 export function parseChatContent(content: string): ChatSegment[] {
   if (!content) return [];
