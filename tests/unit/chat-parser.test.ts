@@ -66,4 +66,15 @@ describe("parseChatContent", () => {
       { type: "text", content: " 를 추천합니다" },
     ]);
   });
+
+  it("parses markers with Naver-imported place IDs containing dots", () => {
+    const result = parseChatContent(
+      "이 집 추천해요! <<맛집이름:naver_37.505903_127.047289>> 정말 맛있어요",
+    );
+    expect(result).toEqual([
+      { type: "text", content: "이 집 추천해요! " },
+      { type: "place", placeId: "naver_37.505903_127.047289" },
+      { type: "text", content: " 정말 맛있어요" },
+    ]);
+  });
 });
