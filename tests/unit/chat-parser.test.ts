@@ -45,4 +45,25 @@ describe("parseChatContent", () => {
       { type: "place", placeId: "b" },
     ]);
   });
+
+  it("parses name:id format from LLM output", () => {
+    const result = parseChatContent("맛있는 치킨 <<르프리크 성수:936069123>> 추천드려요!");
+    expect(result).toEqual([
+      { type: "text", content: "맛있는 치킨 " },
+      { type: "place", placeId: "936069123" },
+      { type: "text", content: " 추천드려요!" },
+    ]);
+  });
+
+  it("parses mixed name:id markers", () => {
+    const result = parseChatContent(
+      "<<교촌치킨 강남점:111>> 과 <<르프리크 성수:222>> 를 추천합니다",
+    );
+    expect(result).toEqual([
+      { type: "place", placeId: "111" },
+      { type: "text", content: " 과 " },
+      { type: "place", placeId: "222" },
+      { type: "text", content: " 를 추천합니다" },
+    ]);
+  });
 });
