@@ -2,7 +2,7 @@ export type ChatSegment =
   | { type: "text"; content: string }
   | { type: "place"; placeId: string };
 
-const PLACE_MARKER_REGEX = /<<PLACE:([^>]+)>>/g;
+const PLACE_MARKER_REGEX = /<<(.+?):([\w-]+)>>/g;
 
 export function parseChatContent(content: string): ChatSegment[] {
   if (!content) return [];
@@ -16,7 +16,7 @@ export function parseChatContent(content: string): ChatSegment[] {
     if (before) {
       segments.push({ type: "text", content: before });
     }
-    segments.push({ type: "place", placeId: match[1] });
+    segments.push({ type: "place", placeId: match[2] });
     lastIndex = match.index + match[0].length;
   }
 
