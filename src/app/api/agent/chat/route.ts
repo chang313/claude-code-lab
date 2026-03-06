@@ -80,18 +80,33 @@ export async function POST(req: Request) {
   // Trim to last N messages
   const trimmedMessages = messages.slice(-MAX_MESSAGES);
 
-  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "GROQ_API_KEY is not configured" },
+      { status: 500 },
+    );
+  }
 
-  const stream = await groq.chat.completions.create({
-    model: "llama-3.1-8b-instant",
-    messages: [
-      { role: "system", content: systemPrompt },
-      ...trimmedMessages.map((m) => ({ role: m.role, content: m.content })),
-    ],
-    stream: true,
-    temperature: 0.5,
-    max_tokens: 1024,
-  });
+  let stream;
+  try {
+    const groq = new Groq({ apiKey });
+    stream = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...trimmedMessages.map((m) => ({ role: m.role, content: m.content })),
+      ],
+      stream: true,
+      temperature: 0.5,
+      max_tokens: 1024,
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Failed to connect to AI service" },
+      { status: 502 },
+    );
+  }
 
   // Convert Groq stream to SSE ReadableStream
   const encoder = new TextEncoder();
