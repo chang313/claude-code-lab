@@ -38,6 +38,50 @@ describe("POST /api/agent/chat", () => {
     vi.stubEnv("GROQ_API_KEY", "test-key");
   });
 
+  it("returns 500 when GROQ_API_KEY is missing", async () => {
+    vi.stubEnv("GROQ_API_KEY", "");
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+    mockOrder.mockResolvedValue({ data: [], error: null });
+    mockEq.mockReturnValue({ order: mockOrder });
+    mockSelect.mockReturnValue({ eq: mockEq });
+
+    const req = new Request("http://localhost/api/agent/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        messages: [{ role: "user", content: "test" }],
+      }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(500);
+    const json = await res.json();
+    expect(json.error).toContain("GROQ_API_KEY");
+  });
+
+  it("returns 502 when Groq API fails", async () => {
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+    mockOrder.mockResolvedValue({ data: [], error: null });
+    mockEq.mockReturnValue({ order: mockOrder });
+    mockSelect.mockReturnValue({ eq: mockEq });
+    mockCreate.mockRejectedValue(new Error("API error"));
+
+    const req = new Request("http://localhost/api/agent/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        messages: [{ role: "user", content: "test" }],
+      }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(502);
+  });
+
   it("returns 401 when not authenticated", async () => {
     mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
 
