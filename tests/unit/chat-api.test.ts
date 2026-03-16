@@ -155,8 +155,8 @@ describe("POST /api/agent/chat", () => {
     // Verify the system prompt sent to Groq was truncated
     const callArgs = mockCreate.mock.calls[0][0];
     const systemMsg = callArgs.messages[0].content;
-    // Should include truncation note
-    expect(systemMsg).toContain("saved places due to context limits");
+    // Should include truncation note (Korean)
+    expect(systemMsg).toContain("토큰 제한으로");
     // Should NOT contain all 200 places
     expect(systemMsg).not.toContain("place-199");
   });
@@ -253,10 +253,10 @@ describe("POST /api/agent/chat", () => {
 
     const callArgs = mockCreate.mock.calls[0][0];
     const systemMsg = callArgs.messages[0].content;
-    // Should have empty array in prompt
-    expect(systemMsg).toContain("[]");
+    // Should have zero places indicated in prompt
+    expect(systemMsg).toContain("(0개)");
     // Should NOT have truncation note
-    expect(systemMsg).not.toContain("context limits");
+    expect(systemMsg).not.toContain("토큰 제한으로");
   });
 
   it("returns 502 for non-APIError exceptions", async () => {
