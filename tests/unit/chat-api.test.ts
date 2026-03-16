@@ -230,8 +230,8 @@ describe("POST /api/agent/chat", () => {
 
   it("returns 413 BUDGET_EXCEEDED when conversation too long", async () => {
     mockAuthAndPlaces([makePlace("k1", "치킨집", 4)]);
-    // Send a very long message that exhausts the token budget
-    const longContent = "가".repeat(15000);
+    // Send a very long message that exhausts the token budget (at /2 ratio, 10000 chars = 5000 tokens)
+    const longContent = "가".repeat(10000);
 
     const res = await POST(
       makeRequest([{ role: "user", content: longContent }]),
