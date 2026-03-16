@@ -11,8 +11,10 @@ import type { Restaurant } from "@/types";
 const SUGGESTED_PROMPTS = [
   "오늘 뭐 먹지?",
   "매운 거 추천해줘",
-  "카페 가고 싶어",
+  "가볍게 먹을 곳",
   "별점 높은 곳 알려줘",
+  "안 가본 곳 추천해줘",
+  "혼밥하기 좋은 곳",
 ];
 
 const MIN_PLACES = 3;
