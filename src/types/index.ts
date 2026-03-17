@@ -52,6 +52,8 @@ export interface SavedMarkerData {
   lng: number;
   starRating: number | null;
   category: string;
+  address: string;
+  placeUrl: string | null;
 }
 
 export interface LatLng {
