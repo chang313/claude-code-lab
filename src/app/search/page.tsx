@@ -88,12 +88,16 @@ export default function SearchPage() {
     }
   }, [center]);
 
+  // Track whether the first search auto-fit has completed
+  const [hasAutoFitted, setHasAutoFitted] = useState(false);
+
   // After initial search auto-fits, the map fires onBoundsChange.
   useEffect(() => {
     if (currentQuery && !lastSearchedBounds && currentBounds && hasSearched && !isLoading) {
       setLastSearchedBounds(currentBounds);
+      if (!hasAutoFitted) setHasAutoFitted(true);
     }
-  }, [currentQuery, lastSearchedBounds, currentBounds, hasSearched, isLoading]);
+  }, [currentQuery, lastSearchedBounds, currentBounds, hasSearched, isLoading, hasAutoFitted]);
 
   // Viewport re-search
   const handleViewportSearch = useCallback(async () => {
@@ -160,10 +164,23 @@ export default function SearchPage() {
     [results, savedRestaurants, currentBounds, showSavedMarkers],
   );
 
+  // First search: zoom to fit all results
   const fitBounds = useMemo(() => {
     if (!hasSearched || markers.length === 0 || lastSearchedBounds !== null) return undefined;
+    if (hasAutoFitted) return undefined;
     return markers.map((m) => ({ lat: m.lat, lng: m.lng }));
-  }, [hasSearched, markers, lastSearchedBounds]);
+  }, [hasSearched, markers, lastSearchedBounds, hasAutoFitted]);
+
+  // Subsequent searches: pan to center of results without changing zoom
+  const panTo = useMemo(() => {
+    if (!hasSearched || markers.length === 0 || lastSearchedBounds !== null) return undefined;
+    if (!hasAutoFitted) return undefined;
+    const searchMarkers = markers.filter((m) => m.markerType === "search");
+    if (searchMarkers.length === 0) return undefined;
+    const avgLat = searchMarkers.reduce((sum, m) => sum + m.lat, 0) / searchMarkers.length;
+    const avgLng = searchMarkers.reduce((sum, m) => sum + m.lng, 0) / searchMarkers.length;
+    return { lat: avgLat, lng: avgLng };
+  }, [hasSearched, markers, lastSearchedBounds, hasAutoFitted]);
 
   const renderCard = (place: KakaoPlace) => {
     const status = statusMap.get(place.id) ?? null;
@@ -212,6 +229,7 @@ export default function SearchPage() {
         center={center}
         markers={markers}
         fitBounds={fitBounds}
+        panTo={panTo}
         onMarkerClick={handleMarkerClick}
         onBoundsChange={handleBoundsChange}
         className="w-full h-full"

@@ -17,6 +17,7 @@ interface MapViewProps {
   center?: { lat: number; lng: number };
   markers: MapMarker[];
   fitBounds?: { lat: number; lng: number }[];
+  panTo?: { lat: number; lng: number };
   onMarkerClick: (id: string) => void;
   onBoundsChange?: (bounds: Bounds) => void;
   className?: string;
@@ -127,6 +128,7 @@ export default function MapView({
   center,
   markers,
   fitBounds,
+  panTo,
   onMarkerClick,
   onBoundsChange,
   className,
@@ -181,7 +183,7 @@ export default function MapView({
     }
   }, [center, emitBounds, onBoundsChange]);
 
-  // Auto-fit map to bounds
+  // Auto-fit map to bounds (first search only)
   useEffect(() => {
     if (!mapRef.current || !fitBounds || fitBounds.length === 0) return;
 
@@ -191,6 +193,12 @@ export default function MapView({
     });
     mapRef.current.setBounds(bounds);
   }, [fitBounds]);
+
+  // Pan to point without changing zoom (subsequent searches)
+  useEffect(() => {
+    if (!mapRef.current || !panTo) return;
+    mapRef.current.setCenter(new window.kakao.maps.LatLng(panTo.lat, panTo.lng));
+  }, [panTo]);
 
   useEffect(() => {
     if (!mapRef.current || !window.kakao) return;
