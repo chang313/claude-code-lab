@@ -1,23 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// vi.hoisted runs before vi.mock hoisting, making MockAPIError available in the factory
-const { MockAPIError, mockCreate } = vi.hoisted(() => {
-  class MockAPIError extends Error {
-    status: number;
-    constructor(status: number, message: string) {
-      super(message);
-      this.status = status;
-      this.name = "APIError";
-    }
-  }
-  return { MockAPIError, mockCreate: vi.fn() };
-});
+// Mock Gemini SDK
+const mockGenerateContentStream = vi.fn();
 
-vi.mock("groq-sdk", () => ({
-  default: class MockGroq {
-    chat = { completions: { create: mockCreate } };
+vi.mock("@google/genai", () => ({
+  GoogleGenAI: class MockGoogleGenAI {
+    models = { generateContentStream: mockGenerateContentStream };
   },
-  APIError: MockAPIError,
 }));
 
 // Mock supabase server client
@@ -34,7 +23,6 @@ vi.mock("@/lib/supabase/server", () => ({
   })),
 }));
 
-// Need to mock next/headers for server component
 vi.mock("next/headers", () => ({
   cookies: vi.fn(async () => ({
     getAll: () => [],
@@ -69,11 +57,9 @@ function mockAuthAndPlaces(places: ReturnType<typeof makePlace>[]) {
   mockSelect.mockReturnValue({ eq: mockEq });
 }
 
-function mockGroqStream(contents: string[]) {
-  const chunks = contents.map((c) => ({
-    choices: [{ delta: { content: c } }],
-  }));
-  mockCreate.mockResolvedValue({
+function mockGeminiStream(texts: string[]) {
+  const chunks = texts.map((t) => ({ text: t }));
+  mockGenerateContentStream.mockResolvedValue({
     [Symbol.asyncIterator]: async function* () {
       for (const chunk of chunks) yield chunk;
     },
@@ -90,7 +76,7 @@ function makeRequest(messages: { role: string; content: string }[]) {
 describe("POST /api/agent/chat", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubEnv("GROQ_API_KEY", "test-key");
+    vi.stubEnv("GEMINI_API_KEY", "test-key");
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -112,8 +98,8 @@ describe("POST /api/agent/chat", () => {
     expect(res.status).toBe(400);
   });
 
-  it("returns 500 when GROQ_API_KEY is missing", async () => {
-    vi.stubEnv("GROQ_API_KEY", "");
+  it("returns 500 when GEMINI_API_KEY is missing", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "");
     mockAuthAndPlaces([makePlace("k1", "치킨집", 4)]);
 
     const res = await POST(
@@ -121,12 +107,12 @@ describe("POST /api/agent/chat", () => {
     );
     expect(res.status).toBe(500);
     const json = await res.json();
-    expect(json.error).toContain("GROQ_API_KEY");
+    expect(json.error).toContain("GEMINI_API_KEY");
   });
 
   it("returns streaming response for valid request", async () => {
     mockAuthAndPlaces([makePlace("k1", "치킨집", 4)]);
-    mockGroqStream(["치킨집", " 추천!"]);
+    mockGeminiStream(["치킨집", " 추천!"]);
 
     const res = await POST(
       makeRequest([{ role: "user", content: "치킨 먹고싶어" }]),
@@ -139,28 +125,6 @@ describe("POST /api/agent/chat", () => {
     expect(text).toContain("추천!");
   });
 
-  it("truncates places when they exceed token budget", async () => {
-    // Generate 200 places — should exceed the budget
-    const places = Array.from({ length: 200 }, (_, i) =>
-      makePlace(`place-${i}`, `맛집 ${i}번`, i % 5 === 0 ? 4 : null),
-    );
-    mockAuthAndPlaces(places);
-    mockGroqStream(["추천합니다"]);
-
-    const res = await POST(
-      makeRequest([{ role: "user", content: "뭐 먹을까" }]),
-    );
-    expect(res.status).toBe(200);
-
-    // Verify the system prompt sent to Groq was truncated
-    const callArgs = mockCreate.mock.calls[0][0];
-    const systemMsg = callArgs.messages[0].content;
-    // Should include truncation note (Korean)
-    expect(systemMsg).toContain("토큰 제한으로");
-    // Should NOT contain all 200 places
-    expect(systemMsg).not.toContain("place-199");
-  });
-
   it("prioritizes starred places over unstarred", async () => {
     const places = [
       makePlace("unstarred-1", "일반식당1"),
@@ -169,32 +133,49 @@ describe("POST /api/agent/chat", () => {
       makePlace("starred-3", "별점3식당", 3),
     ];
     mockAuthAndPlaces(places);
-    mockGroqStream(["추천"]);
+    mockGeminiStream(["추천"]);
 
     const res = await POST(
       makeRequest([{ role: "user", content: "추천해줘" }]),
     );
     expect(res.status).toBe(200);
 
-    const callArgs = mockCreate.mock.calls[0][0];
-    const systemMsg: string = callArgs.messages[0].content;
-    // Starred places should appear before unstarred in the JSON
+    const callArgs = mockGenerateContentStream.mock.calls[0][0];
+    const systemMsg: string = callArgs.config.systemInstruction;
     const star5Pos = systemMsg.indexOf("starred-5");
     const star3Pos = systemMsg.indexOf("starred-3");
     const unstarred1Pos = systemMsg.indexOf("unstarred-1");
     const unstarred2Pos = systemMsg.indexOf("unstarred-2");
-    // 5-star before 3-star
     expect(star5Pos).toBeLessThan(star3Pos);
-    // Both starred before both unstarred
     expect(star5Pos).toBeLessThan(unstarred1Pos);
     expect(star3Pos).toBeLessThan(unstarred2Pos);
-    // Unstarred preserve original order
     expect(unstarred1Pos).toBeLessThan(unstarred2Pos);
   });
 
-  it("returns 429 when Groq returns rate limit error (429)", async () => {
+  it("maps assistant role to model for Gemini", async () => {
     mockAuthAndPlaces([makePlace("k1", "치킨집", 4)]);
-    mockCreate.mockRejectedValue(new MockAPIError(429, "Rate limit exceeded"));
+    mockGeminiStream(["응답"]);
+
+    await POST(
+      makeRequest([
+        { role: "user", content: "안녕" },
+        { role: "assistant", content: "안녕하세요!" },
+        { role: "user", content: "추천해줘" },
+      ]),
+    );
+
+    const callArgs = mockGenerateContentStream.mock.calls[0][0];
+    const contents = callArgs.contents;
+    expect(contents[0].role).toBe("user");
+    expect(contents[1].role).toBe("model");
+    expect(contents[2].role).toBe("user");
+  });
+
+  it("returns 429 when Gemini returns rate limit error", async () => {
+    mockAuthAndPlaces([makePlace("k1", "치킨집", 4)]);
+    const err = new Error("Rate limit exceeded");
+    (err as unknown as { status: number }).status = 429;
+    mockGenerateContentStream.mockRejectedValue(err);
 
     const res = await POST(
       makeRequest([{ role: "user", content: "test" }]),
@@ -204,64 +185,35 @@ describe("POST /api/agent/chat", () => {
     expect(json.error).toContain("try again");
   });
 
-  it("returns 429 when Groq returns request too large (413)", async () => {
+  it("returns 429 when Gemini returns bad request (400)", async () => {
     mockAuthAndPlaces([makePlace("k1", "치킨집", 4)]);
-    mockCreate.mockRejectedValue(
-      new MockAPIError(413, "Request too large"),
-    );
+    const err = new Error("Bad request");
+    (err as unknown as { status: number }).status = 400;
+    mockGenerateContentStream.mockRejectedValue(err);
 
     const res = await POST(
       makeRequest([{ role: "user", content: "test" }]),
     );
     expect(res.status).toBe(429);
-  });
-
-  it("returns 429 when Groq returns bad request (400)", async () => {
-    mockAuthAndPlaces([makePlace("k1", "치킨집", 4)]);
-    mockCreate.mockRejectedValue(
-      new MockAPIError(400, "Request too large for model"),
-    );
-
-    const res = await POST(
-      makeRequest([{ role: "user", content: "test" }]),
-    );
-    expect(res.status).toBe(429);
-  });
-
-  it("returns 413 BUDGET_EXCEEDED when conversation too long", async () => {
-    mockAuthAndPlaces([makePlace("k1", "치킨집", 4)]);
-    // Send a very long message that exhausts the token budget (at /2 ratio, 10000 chars = 5000 tokens)
-    const longContent = "가".repeat(10000);
-
-    const res = await POST(
-      makeRequest([{ role: "user", content: longContent }]),
-    );
-    expect(res.status).toBe(413);
-    const json = await res.json();
-    expect(json.error).toBe("conversation_too_long");
-    expect(json.code).toBe("BUDGET_EXCEEDED");
   });
 
   it("handles zero places gracefully", async () => {
     mockAuthAndPlaces([]);
-    mockGroqStream(["저장된 맛집이 없어요"]);
+    mockGeminiStream(["저장된 맛집이 없어요"]);
 
     const res = await POST(
       makeRequest([{ role: "user", content: "추천해줘" }]),
     );
     expect(res.status).toBe(200);
 
-    const callArgs = mockCreate.mock.calls[0][0];
-    const systemMsg = callArgs.messages[0].content;
-    // Should have zero places indicated in prompt
-    expect(systemMsg).toContain("(0개)");
-    // Should NOT have truncation note
-    expect(systemMsg).not.toContain("토큰 제한으로");
+    const callArgs = mockGenerateContentStream.mock.calls[0][0];
+    const systemMsg = callArgs.config.systemInstruction;
+    expect(systemMsg).toContain("저장된 맛집 (0개)");
   });
 
-  it("returns 502 for non-APIError exceptions", async () => {
+  it("returns 502 for non-API errors", async () => {
     mockAuthAndPlaces([makePlace("k1", "치킨집", 4)]);
-    mockCreate.mockRejectedValue(new Error("Network failure"));
+    mockGenerateContentStream.mockRejectedValue(new Error("Network failure"));
 
     const res = await POST(
       makeRequest([{ role: "user", content: "test" }]),
@@ -271,11 +223,11 @@ describe("POST /api/agent/chat", () => {
     expect(json.error).toBe("Failed to connect to AI service");
   });
 
-  it("returns 502 for Groq server errors (500)", async () => {
+  it("returns 502 for Gemini server errors (500)", async () => {
     mockAuthAndPlaces([makePlace("k1", "치킨집", 4)]);
-    mockCreate.mockRejectedValue(
-      new MockAPIError(500, "Internal server error"),
-    );
+    const err = new Error("Internal server error");
+    (err as unknown as { status: number }).status = 500;
+    mockGenerateContentStream.mockRejectedValue(err);
 
     const res = await POST(
       makeRequest([{ role: "user", content: "test" }]),
