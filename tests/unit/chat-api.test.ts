@@ -208,7 +208,7 @@ describe("POST /api/agent/chat", () => {
 
     const callArgs = mockGenerateContentStream.mock.calls[0][0];
     const systemMsg = callArgs.config.systemInstruction;
-    expect(systemMsg).toContain("[]");
+    expect(systemMsg).toContain("저장된 맛집 (0개)");
   });
 
   it("returns 502 for non-API errors", async () => {
