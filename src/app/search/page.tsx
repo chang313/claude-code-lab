@@ -119,11 +119,34 @@ export default function SearchPage() {
 
   const handleMarkerClick = useCallback(
     (id: string) => {
+      // First check search results
       const place = results.find((p) => p.id === id);
-      setSelectedPlace(place ?? null);
-      if (sheetState === "expanded") setSheetState("peek");
+      if (place) {
+        setSelectedPlace(place);
+        if (sheetState === "expanded") setSheetState("peek");
+        return;
+      }
+      // Fall back to saved markers (wishlist/visited shown on map)
+      const saved = savedRestaurants.find((s) => s.kakaoPlaceId === id);
+      if (saved) {
+        const synthetic: KakaoPlace = {
+          id: saved.kakaoPlaceId,
+          place_name: saved.name,
+          address_name: saved.address,
+          road_address_name: saved.address,
+          category_group_name: "",
+          category_name: saved.category,
+          x: String(saved.lng),
+          y: String(saved.lat),
+          place_url: saved.placeUrl ?? "",
+        };
+        setSelectedPlace(synthetic);
+        if (sheetState === "expanded") setSheetState("peek");
+        return;
+      }
+      setSelectedPlace(null);
     },
-    [results, sheetState],
+    [results, savedRestaurants, sheetState],
   );
 
   // Add to wishlist (default, star_rating = null)
@@ -165,8 +188,15 @@ export default function SearchPage() {
     return markers.map((m) => ({ lat: m.lat, lng: m.lng }));
   }, [hasSearched, markers, lastSearchedBounds]);
 
-  const renderCard = (place: KakaoPlace) => {
-    const status = statusMap.get(place.id) ?? null;
+  const renderCard = (place: KakaoPlace, useSavedFallback?: boolean) => {
+    let status = statusMap.get(place.id) ?? null;
+    // For saved markers not in search results, derive status from savedRestaurants
+    if (!status && useSavedFallback) {
+      const saved = savedRestaurants.find((s) => s.kakaoPlaceId === place.id);
+      if (saved) {
+        status = saved.starRating !== null ? "visited" : "wishlist";
+      }
+    }
     return (
       <RestaurantCard
         key={place.id}
@@ -235,7 +265,7 @@ export default function SearchPage() {
 
       {selectedPlace && (
         <div className="absolute bottom-20 left-4 right-4 z-30">
-          {renderCard(selectedPlace)}
+          {renderCard(selectedPlace, true)}
         </div>
       )}
 

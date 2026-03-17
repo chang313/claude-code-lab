@@ -475,11 +475,11 @@ export function useSavedRestaurantsForMap() {
 
       const { data, error } = await supabase
         .from("restaurants")
-        .select("kakao_place_id, name, lat, lng, star_rating, category")
+        .select("kakao_place_id, name, lat, lng, star_rating, category, address, place_url")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data as { kakao_place_id: string; name: string; lat: number; lng: number; star_rating: number | null; category: string }[]).map(
+      return (data as { kakao_place_id: string; name: string; lat: number; lng: number; star_rating: number | null; category: string; address: string; place_url: string | null }[]).map(
         (row) => ({
           kakaoPlaceId: row.kakao_place_id,
           name: row.name,
@@ -487,6 +487,8 @@ export function useSavedRestaurantsForMap() {
           lng: row.lng,
           starRating: row.star_rating,
           category: row.category,
+          address: row.address,
+          placeUrl: row.place_url,
         }),
       );
     },
