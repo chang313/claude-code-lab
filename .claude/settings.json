@@ -6,7 +6,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); if [ \"$branch\" = \"main\" ] || [ \"$branch\" = \"master\" ]; then echo \"BLOCKED: You're on '$branch'. Create a worktree first: git worktree add ../<feature-name> -b <feature-name> main\" >&2; exit 1; fi"
+            "command": "case \"$CLAUDE_TOOL_INPUT\" in */Users/parkchanghyeon/github/claude-code-lab/*) ;; *) exit 0;; esac; branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); if [ \"$branch\" = \"main\" ] || [ \"$branch\" = \"master\" ]; then echo \"BLOCKED: You're on '$branch'. Create a worktree first: git worktree add ../<feature-name> -b <feature-name> main\" >&2; exit 2; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); if [ \"$branch\" = \"main\" ] || [ \"$branch\" = \"master\" ]; then case \"$CLAUDE_TOOL_INPUT\" in *'git commit'*|*'git push'*|*'git merge'*|*'git rebase'*|*'git cherry-pick'*|*'git reset'*|*'git stash pop'*|*'git stash apply'*) echo \"BLOCKED: Destructive git operation on '$branch'. Create a worktree first: git worktree add ../<feature-name> -b <feature-name> main\" >&2; exit 2;; esac; fi"
           }
         ]
       }
