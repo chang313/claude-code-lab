@@ -8,6 +8,7 @@ Deployed on Vercel. Package manager: pnpm.
 - `NEXT_PUBLIC_KAKAO_REST_KEY` - Kakao REST API key (Local API)
 - `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anonymous key
+- `GEMINI_API_KEY` - Google Gemini API key (AI chatbot, get from https://aistudio.google.com/apikey)
 
 **OAuth Callback Setup** (required per deployment domain):
 1. Supabase Dashboard > Auth > URL Configuration > Add `https://<domain>/auth/callback`

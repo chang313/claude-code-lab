@@ -22,7 +22,7 @@ Project rules are in `.claude/rules/`:
 - `kakao.md` — Kakao Maps SDK and OAuth integration
 
 ## Active Technologies
-- TypeScript 5.x (strict mode) + Next.js 16 (App Router), React 19, Tailwind CSS 4, Kakao Maps SDK, Kakao Local REST API, Supabase (Auth + Postgres), @supabase/ssr
+- TypeScript 5.x (strict mode) + Next.js 16 (App Router), React 19, Tailwind CSS 4, Kakao Maps SDK, Kakao Local REST API, Supabase (Auth + Postgres), @supabase/ssr, Google Gemini 2.5 Flash (@google/genai)
 - Supabase Kakao OAuth for authentication, Supabase Postgres with RLS for cloud-synced data
 ## Feature History
 
